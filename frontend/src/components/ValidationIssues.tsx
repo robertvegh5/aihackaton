@@ -1,7 +1,7 @@
-import { useState } from "react";
-import { AlertCircle, AlertTriangle, Info, CheckCircle2, ChevronRight, ArrowRight, ArrowLeft, ExternalLink } from "lucide-react";
+import { AlertCircle, AlertTriangle, Info, ArrowRight, ArrowLeft } from "lucide-react";
 
 interface ValidationIssuesProps {
+  onSelectIssue: (field: string) => void;
   onNext: () => void;
   onBack: () => void;
 }
@@ -35,24 +35,10 @@ const SEVERITY_CONFIG = {
   info: { color: "var(--ms-status-info)", bg: "rgba(46,107,170,0.06)", border: "rgba(46,107,170,0.15)", label: "Info", icon: Info },
 };
 
-export function ValidationIssues({ onNext, onBack }: ValidationIssuesProps) {
-  const [resolved, setResolved] = useState<Set<string>>(new Set());
-  const [activeIssue, setActiveIssue] = useState<string>("v1");
-
-  const toggleResolved = (id: string) => {
-    setResolved((current) => {
-      const next = new Set(current);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
-      return next;
-    });
-  };
-
-  const blocking = ISSUES.filter((issue) => issue.severity === "blocking" && !resolved.has(issue.id));
-  const canSubmit = blocking.length === 0;
+export function ValidationIssues({ onSelectIssue, onNext, onBack }: ValidationIssuesProps) {
+  const blocking = ISSUES.filter((issue) => issue.severity === "blocking");
+  const warnings = ISSUES.filter((issue) => issue.severity === "warning");
+  const canSubmit = false;
 
   return (
     <div className="flex h-full flex-col">
@@ -66,19 +52,22 @@ export function ValidationIssues({ onNext, onBack }: ValidationIssuesProps) {
           <div>
             <h1 style={{ color: "var(--ms-green)" }}>Valideringsresultat</h1>
             <p className="mt-1" style={{ color: "var(--muted-foreground)", fontSize: "15px" }}>
-              Atgarda blockerande problem innan artikeln kan skickas for intern granskning.
+              Har ser du vad som maste justeras innan artikeln kan skickas vidare.
+            </p>
+            <p className="mt-2" style={{ color: "var(--ms-green-mid)", fontSize: "12px", fontWeight: 600 }}>
+              Klicka pa ett problem for att hoppa direkt till ratt falt i steg 2.
             </p>
           </div>
           <div className="flex flex-shrink-0 gap-2">
             <StatusBadge
-              count={ISSUES.filter((issue) => issue.severity === "blocking").length - [...resolved].filter((id) => ISSUES.find((issue) => issue.id === id)?.severity === "blocking").length}
+              count={blocking.length}
               label="blockerar"
               color="var(--ms-status-error)"
               bg="rgba(192,57,43,0.08)"
               border="rgba(192,57,43,0.2)"
             />
             <StatusBadge
-              count={ISSUES.filter((issue) => issue.severity === "warning").length}
+              count={warnings.length}
               label="varningar"
               color="var(--ms-amber)"
               bg="rgba(200,151,62,0.1)"
@@ -108,13 +97,10 @@ export function ValidationIssues({ onNext, onBack }: ValidationIssuesProps) {
                   <span style={{ fontSize: "11px", color: "var(--muted-foreground)" }}>({severityIssues.length})</span>
                 </div>
                 {severityIssues.map((issue) => (
-                  <IssueRow
+                  <IssueButton
                     key={issue.id}
                     issue={issue}
-                    active={activeIssue === issue.id}
-                    resolved={resolved.has(issue.id)}
-                    onSelect={() => setActiveIssue(issue.id)}
-                    onResolve={() => toggleResolved(issue.id)}
+                    onClick={() => onSelectIssue(issue.field)}
                   />
                 ))}
               </div>
@@ -123,58 +109,19 @@ export function ValidationIssues({ onNext, onBack }: ValidationIssuesProps) {
         </div>
 
         <div className="flex flex-col gap-4 overflow-y-auto p-5" style={{ background: "var(--muted)" }}>
-          {(() => {
-            const issue = ISSUES.find((entry) => entry.id === activeIssue);
-            if (!issue) {
-              return null;
-            }
-
-            const config = SEVERITY_CONFIG[issue.severity];
-
-            return (
-              <>
-                <div className="overflow-hidden rounded-xl" style={{ border: "1px solid var(--border)", background: "var(--card)" }}>
-                  <div className="border-b border-border px-4 pt-4 pb-3" style={{ background: config.bg }}>
-                    <div className="mb-1 flex items-center gap-2">
-                      <config.icon size={14} style={{ color: config.color }} />
-                      <span style={{ fontSize: "11px", fontWeight: 700, color: config.color, fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.06em" }}>
-                        {issue.code}
-                      </span>
-                    </div>
-                    <p style={{ fontSize: "14px", fontWeight: 600, color: "var(--foreground)" }}>{issue.title}</p>
-                  </div>
-                  <div className="p-4">
-                    <p style={{ fontSize: "13px", color: "var(--foreground)", lineHeight: "1.6", marginBottom: "12px" }}>{issue.detail}</p>
-                    <div className="flex flex-col gap-2">
-                      <InfoRow label="Falt" value={issue.field} />
-                      <InfoRow label="Sektion" value={issue.section} />
-                      <InfoRow label="Allvarlighetsgrad" value={config.label} valueColor={config.color} />
-                    </div>
-                  </div>
-                </div>
-
-                <button className="flex w-full items-center justify-between rounded-xl px-4 py-3 transition-all hover:opacity-90" style={{ background: "var(--ms-green)", color: "#fff" }}>
-                  <span style={{ fontSize: "13px", fontWeight: 600 }}>Ga till falt: {issue.field}</span>
-                  <ExternalLink size={14} />
-                </button>
-
-                <button
-                  onClick={() => toggleResolved(issue.id)}
-                  className="flex w-full items-center justify-between rounded-xl border px-4 py-3 transition-all"
-                  style={{
-                    background: resolved.has(issue.id) ? "rgba(45,106,79,0.08)" : "var(--card)",
-                    border: `1px solid ${resolved.has(issue.id) ? "rgba(45,106,79,0.25)" : "var(--border)"}`,
-                    color: resolved.has(issue.id) ? "var(--ms-status-ok)" : "var(--foreground)",
-                  }}
-                >
-                  <span style={{ fontSize: "13px", fontWeight: 500 }}>
-                    {resolved.has(issue.id) ? "Markerad som atgardad" : "Markera som atgardad"}
-                  </span>
-                  <CheckCircle2 size={14} style={{ color: resolved.has(issue.id) ? "var(--ms-status-ok)" : "var(--muted-foreground)" }} />
-                </button>
-              </>
-            );
-          })()}
+          <div className="overflow-hidden rounded-xl" style={{ border: "1px solid var(--border)", background: "var(--card)" }}>
+            <div className="border-b border-border px-4 pt-4 pb-3">
+              <p style={{ fontSize: "14px", fontWeight: 600, color: "var(--foreground)" }}>Sammanfattning</p>
+            </div>
+            <div className="p-4">
+              <div className="flex flex-col gap-2">
+                <InfoRow label="Blockerande problem" value={String(blocking.length)} valueColor="var(--ms-status-error)" />
+                <InfoRow label="Varningar" value={String(warnings.length)} />
+                <InfoRow label="Mest kritisk sektion" value="Naringsvarden" />
+                <InfoRow label="Nasta steg" value="Ratta i steg 2" />
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -183,7 +130,7 @@ export function ValidationIssues({ onNext, onBack }: ValidationIssuesProps) {
           <ArrowLeft size={16} /> Tillbaka
         </button>
         <div className="flex items-center gap-3">
-          {!canSubmit && <p style={{ fontSize: "13px", color: "var(--ms-status-error)" }}>{blocking.length} blockerande problem kvar</p>}
+          {!canSubmit && <p style={{ fontSize: "13px", color: "var(--ms-status-error)" }}>{blocking.length} saker maste andras innan du kan ga vidare</p>}
           <button
             onClick={onNext}
             disabled={!canSubmit}
@@ -197,7 +144,7 @@ export function ValidationIssues({ onNext, onBack }: ValidationIssuesProps) {
               opacity: canSubmit ? 1 : 0.6,
             }}
           >
-            Skicka for intern granskning <ArrowRight size={16} />
+            Skicka till intern granskning <ArrowRight size={16} />
           </button>
         </div>
       </div>
@@ -205,51 +152,32 @@ export function ValidationIssues({ onNext, onBack }: ValidationIssuesProps) {
   );
 }
 
-function IssueRow({
+function IssueButton({
   issue,
-  active,
-  resolved,
-  onSelect,
-  onResolve,
+  onClick,
 }: {
   issue: Issue;
-  active: boolean;
-  resolved: boolean;
-  onSelect: () => void;
-  onResolve: () => void;
+  onClick: () => void;
 }) {
   const config = SEVERITY_CONFIG[issue.severity];
 
   return (
-    <div
-      onClick={onSelect}
-      className="mb-1 flex cursor-pointer items-start gap-3 rounded-lg px-4 py-3 transition-all"
-      style={{
-        background: active ? config.bg : resolved ? "rgba(45,106,79,0.04)" : "var(--card)",
-        border: `1px solid ${active ? config.border : resolved ? "rgba(45,106,79,0.15)" : "var(--border)"}`,
-        opacity: resolved ? 0.7 : 1,
-      }}
+    <button
+      type="button"
+      onClick={onClick}
+      className="mb-1 flex w-full cursor-pointer items-start gap-3 rounded-lg px-4 py-3 text-left transition-all hover:opacity-90"
+      style={{ background: config.bg, border: `1px solid ${config.border}` }}
     >
-      <config.icon size={14} style={{ color: resolved ? "var(--ms-status-ok)" : config.color, flexShrink: 0, marginTop: "2px" }} />
+      <config.icon size={14} style={{ color: config.color, flexShrink: 0, marginTop: "2px" }} />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <span style={{ fontSize: "12px", fontFamily: "'JetBrains Mono', monospace", color: "var(--muted-foreground)" }}>{issue.code}</span>
-          {resolved && <span style={{ fontSize: "10px", fontWeight: 700, color: "var(--ms-status-ok)", letterSpacing: "0.05em" }}>ATGARDAD</span>}
+          <span style={{ fontSize: "12px", color: "var(--muted-foreground)" }}>{issue.code}</span>
         </div>
         <p style={{ fontSize: "13px", fontWeight: 500, color: "var(--foreground)", marginTop: "1px" }}>{issue.title}</p>
-        <p style={{ fontSize: "12px", color: "var(--muted-foreground)", marginTop: "2px" }}>{issue.section} › {issue.field}</p>
+        <p style={{ fontSize: "12px", color: "var(--muted-foreground)", marginTop: "2px" }}>{issue.section} · {issue.field}</p>
+        <p style={{ fontSize: "12px", color: config.color, marginTop: "6px", fontWeight: 600 }}>Oppna i utkastet</p>
       </div>
-      <button
-        onClick={(event) => {
-          event.stopPropagation();
-          onResolve();
-        }}
-        className="sr-only"
-        tabIndex={-1}
-        aria-hidden="true"
-      />
-      <ChevronRight size={13} style={{ color: "var(--muted-foreground)", flexShrink: 0, marginTop: "3px" }} />
-    </div>
+    </button>
   );
 }
 

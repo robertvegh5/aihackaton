@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Edit3, ArrowRight, ArrowLeft, Sparkles } from "lucide-react";
 import type { ArticleDraft } from "../App";
 
 interface AIDraftReviewProps {
   articleDraft: ArticleDraft | null;
+  focusTarget?: string | null;
+  onFocusTargetHandled?: () => void;
   onNext: () => void;
   onBack: () => void;
 }
@@ -22,49 +24,28 @@ interface DraftSection {
   fields: DraftField[];
 }
 
-const DRAFT_FIELDS: DraftSection[] = [
-  {
-    section: "Grunduppgifter",
-    fields: [
-      { label: "Artikelnamn", value: "Oatly Havredryck Ekologisk 1 L", confidence: 98, source: "Produktblad s.1" },
-      { label: "EAN-13", value: "7394376615808", confidence: 99, source: "Streckkod s.1" },
-      { label: "Varumarke", value: "Oatly", confidence: 99, source: "Produktblad s.1" },
-      { label: "Kategori", value: "Vaxtbaserade drycker", confidence: 82, source: "Produktblad s.2", warning: "Lag konfidens - verifiera" },
-      { label: "Artikelnummer", value: "OAT-HAVR-EKO-001", confidence: 94, source: "Artikeldata.xlsx A3" },
-    ],
-  },
-  {
-    section: "Naringsvarden (per 100 ml)",
-    fields: [
-      { label: "Energi (kJ)", value: "192", confidence: 96, source: "Naringstabell s.4" },
-      { label: "Fett (g)", value: "1.5", confidence: 96, source: "Naringstabell s.4" },
-      { label: "Kolhydrater (g)", value: "6.7", confidence: 95, source: "Naringstabell s.4" },
-      { label: "varav sockerarter (g)", value: "4.0", confidence: 93, source: "Naringstabell s.4" },
-      { label: "Protein (g)", value: "1.0", confidence: 96, source: "Naringstabell s.4" },
-      { label: "Kalcium (mg)", value: "-", confidence: 0, source: "Ej hittad", missing: true },
-    ],
-  },
-  {
-    section: "Allergener",
-    fields: [
-      { label: "Innehaller mjolk", value: "Nej", confidence: 91, source: "Ingredienslista s.3" },
-      { label: "Innehaller soja", value: "Nej - kan innehalla spar", confidence: 88, source: "Allergentext s.3", warning: "Dubbelkolla sparmarkning" },
-      { label: "Innehaller gluten", value: "Nej", confidence: 95, source: "Ingredienslista s.3" },
-    ],
-  },
-  {
-    section: "Logistik",
-    fields: [
-      { label: "Hallbarhet (dagar)", value: "365", confidence: 90, source: "Produktblad s.6" },
-      { label: "Ursprungsland", value: "Sverige", confidence: 97, source: "Produktblad s.1" },
-      { label: "Kolli per forpackning", value: "-", confidence: 0, source: "Ej hittad", missing: true },
-      { label: "GLN (leverantor)", value: "-", confidence: 0, source: "Ej hittad", missing: true },
-    ],
-  },
-];
-
-export function AIDraftReview({ articleDraft, onNext, onBack }: AIDraftReviewProps) {
+export function AIDraftReview({ articleDraft, focusTarget = null, onFocusTargetHandled, onNext, onBack }: AIDraftReviewProps) {
   const [editingField, setEditingField] = useState<string | null>(null);
+  const fieldRefs = useRef<Record<string, HTMLInputElement | null>>({});
+
+  useEffect(() => {
+    if (!focusTarget) {
+      return;
+    }
+
+    const element = fieldRefs.current[focusTarget];
+    if (!element) {
+      return;
+    }
+
+    setEditingField(focusTarget);
+    window.setTimeout(() => {
+      element.scrollIntoView({ behavior: "smooth", block: "center" });
+      element.focus();
+      element.select();
+      onFocusTargetHandled?.();
+    }, 0);
+  }, [focusTarget, onFocusTargetHandled]);
 
   if (!articleDraft) {
     return (
@@ -98,7 +79,6 @@ export function AIDraftReview({ articleDraft, onNext, onBack }: AIDraftReviewPro
   }
 
   const draftFields = mapArticleDraftToSections(articleDraft);
-
   const allFields = draftFields.flatMap((section) => section.fields);
   const missingCount = allFields.filter((field) => field.missing).length;
   const warningCount = allFields.filter((field) => field.warning).length;
@@ -171,6 +151,9 @@ export function AIDraftReview({ articleDraft, onNext, onBack }: AIDraftReviewPro
                     <div className="flex-1">
                       {editingField === field.label ? (
                         <input
+                          ref={(element) => {
+                            fieldRefs.current[field.label] = element;
+                          }}
                           defaultValue={field.missing ? "" : field.value}
                           autoFocus
                           className="w-full rounded px-2 py-1 outline-none focus:ring-2"
@@ -264,7 +247,7 @@ export function AIDraftReview({ articleDraft, onNext, onBack }: AIDraftReviewPro
           <div className="rounded-xl p-4" style={{ background: "rgba(27,58,45,0.06)", border: "1px solid rgba(27,58,45,0.12)" }}>
             <p style={{ fontSize: "12px", fontWeight: 700, color: "var(--ms-green)", marginBottom: "6px" }}>Nasta steg</p>
             <p style={{ fontSize: "12px", color: "var(--ms-green-mid)", lineHeight: "1.6" }}>
-              Fyll i de 3 saknade falten. Granska varningarna. Skicka sedan for fullstandig regelvalidering.
+              Fyll i de saknade falten. Granska varningarna. Skicka sedan for fullstandig regelvalidering.
             </p>
           </div>
         </div>

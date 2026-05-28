@@ -116,60 +116,85 @@ export function App() {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isExtracting, setIsExtracting] = useState(false);
   const [articleDraft, setArticleDraft] = useState<ArticleDraft | null>(null);
+  const [formFocusTarget, setFormFocusTarget] = useState<string | null>(null);
+  const [step2Available, setStep2Available] = useState(false);
+  const [step3Available, setStep3Available] = useState(false);
 
-  const nav = (nextScreen: Screen) => setScreen(nextScreen);
+  const screenEnabled: Record<Screen, boolean> = {
+    "supplier-upload": true,
+    "supplier-form": step2Available,
+    "ai-processing": uploadMode === "upload" && uploadedFiles.length > 0,
+    "ai-draft": step2Available,
+    validation: step3Available,
+    "internal-review": step3Available,
+  };
 
-  const handleGoToSupplierForm = async () => {
-    if (uploadMode === "upload" && uploadedFiles.length === 0) {
+  const nav = (nextScreen: Screen) => {
+    if (!screenEnabled[nextScreen]) {
       return;
     }
 
+    setScreen(nextScreen);
+  };
+
+  const openDraftAtField = (field: string) => {
+    setFormFocusTarget(ISSUE_FIELD_TO_FORM_TARGET[field] ?? field);
+    nav("supplier-form");
+  };
+
+  const handleStartFlow = () => {
+    if (uploadMode === "manual") {
+      setArticleDraft(null);
+      setUploadError(null);
+      setStep2Available(true);
+      setScreen("supplier-form");
+      return;
+    }
+
+    if (uploadedFiles.length === 0) {
+      return;
+    }
+
+    setUploadError(null);
+    setScreen("ai-processing");
+  };
+
+  const handleProcessUpload = async () => {
     setIsExtracting(true);
     setUploadError(null);
 
     try {
-      if (uploadMode === "upload") {
-        const formData = new FormData();
-        formData.append("mode", uploadMode);
-        formData.append("scenarioId", "scenario-b");
-        uploadedFiles.forEach((uploadedFile) => {
-          formData.append("files", uploadedFile.file, uploadedFile.name);
-        });
+      const formData = new FormData();
+      formData.append("mode", uploadMode);
+      formData.append("scenarioId", "scenario-b");
+      uploadedFiles.forEach((uploadedFile) => {
+        formData.append("files", uploadedFile.file, uploadedFile.name);
+      });
 
-        const response = await fetch("/api/extract", {
-          method: "POST",
-          body: formData,
-        });
+      const response = await fetch("/api/extract", {
+        method: "POST",
+        body: formData,
+      });
 
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
-        }
-
-        const data = (await response.json()) as { articleDraft: ArticleDraft };
-        setArticleDraft(data.articleDraft);
-      } else {
-        const response = await fetch("/api/extract", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ mode: uploadMode, scenarioId: "scenario-a" }),
-        });
-
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
-        }
-
-        const data = (await response.json()) as { articleDraft: ArticleDraft };
-        setArticleDraft(data.articleDraft);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
       }
 
-      nav("supplier-form");
+      const data = (await response.json()) as { articleDraft: ArticleDraft };
+      setArticleDraft(data.articleDraft);
+      setStep2Available(true);
+      return true;
     } catch (error) {
       setUploadError(error instanceof Error ? `Kunde inte starta extraktion: ${error.message}` : "Kunde inte starta extraktion.");
+      return false;
     } finally {
       setIsExtracting(false);
     }
+  };
+
+  const handleValidationStart = () => {
+    setStep3Available(true);
+    setScreen("validation");
   };
 
   return (
@@ -209,25 +234,36 @@ export function App() {
         <div className="flex items-center gap-1">
           {PAIRS.map((pair) => (
             <div key={pair.id} className="flex items-center gap-0.5">
-              {pair.screens.map((pairScreen) => (
-                <button
-                  key={pairScreen.id}
-                  onClick={() => nav(pairScreen.id)}
-                  className="rounded-md px-3 py-1.5 transition-all"
-                  style={{
-                    background: screen === pairScreen.id ? "rgba(255,255,255,0.18)" : "transparent",
-                    color: screen === pairScreen.id ? "#fff" : "rgba(255,255,255,0.6)",
-                    fontSize: "12px",
-                    fontWeight: screen === pairScreen.id ? 600 : 400,
-                    border:
-                      screen === pairScreen.id
-                        ? "1px solid rgba(255,255,255,0.2)"
-                        : "1px solid transparent",
-                  }}
-                >
-                  {pairScreen.label}
-                </button>
-              ))}
+              {pair.screens.map((pairScreen) => {
+                const enabled = screenEnabled[pairScreen.id];
+
+                return (
+                  <button
+                    key={pairScreen.id}
+                    onClick={() => nav(pairScreen.id)}
+                    disabled={!enabled}
+                    className="rounded-md px-3 py-1.5 transition-all"
+                    style={{
+                      background: screen === pairScreen.id ? "rgba(255,255,255,0.18)" : "transparent",
+                      color:
+                        screen === pairScreen.id
+                          ? "#fff"
+                          : enabled
+                            ? "rgba(255,255,255,0.6)"
+                            : "rgba(255,255,255,0.3)",
+                      fontSize: "12px",
+                      fontWeight: screen === pairScreen.id ? 600 : 400,
+                      border:
+                        screen === pairScreen.id
+                          ? "1px solid rgba(255,255,255,0.2)"
+                          : "1px solid transparent",
+                      cursor: enabled ? "pointer" : "not-allowed",
+                    }}
+                  >
+                    {pairScreen.label}
+                  </button>
+                );
+              })}
               <div className="mx-1 h-4 w-px opacity-20" style={{ background: "#fff" }} />
             </div>
           ))}
@@ -249,11 +285,15 @@ export function App() {
       <div className="flex flex-shrink-0 items-center gap-6 border-b border-border px-8 py-2" style={{ background: "var(--card)" }}>
         {PAIRS.map((pair) => {
           const active = pair.screens.some((pairScreen) => pairScreen.id === screen);
+          const enabled = pair.screens.some((pairScreen) => screenEnabled[pairScreen.id]);
+
           return (
             <button
               key={pair.id}
               onClick={() => nav(pair.screens[0].id)}
+              disabled={!enabled}
               className="flex items-center gap-2 transition-all"
+              style={{ opacity: enabled ? 1 : 0.5, cursor: enabled ? "pointer" : "not-allowed" }}
             >
               <div className="h-1.5 w-1.5 rounded-full" style={{ background: active ? "var(--ms-amber)" : "var(--border)" }} />
               <span
@@ -289,7 +329,7 @@ export function App() {
             isSubmitting={isExtracting}
             onModeChange={setUploadMode}
             onFilesChange={setUploadedFiles}
-            onNext={handleGoToSupplierForm}
+            onNext={handleStartFlow}
           />
         )}
         {screen === "supplier-form" && (
@@ -297,21 +337,41 @@ export function App() {
             articleDraft={articleDraft}
             uploadedFiles={uploadedFiles}
             uploadMode={uploadMode}
-            onNext={() => nav("ai-processing")}
+            focusTarget={formFocusTarget}
+            onFocusTargetHandled={() => setFormFocusTarget(null)}
+            onNext={handleValidationStart}
             onBack={() => nav("supplier-upload")}
           />
         )}
         {screen === "ai-processing" && (
-          <AIProcessing uploadedFiles={uploadedFiles} articleDraft={articleDraft} onNext={() => nav("ai-draft")} onBack={() => nav("supplier-form")} />
+          <AIProcessing
+            files={uploadedFiles}
+            articleDraft={articleDraft}
+            onProcess={handleProcessUpload}
+            processingError={uploadError}
+            onComplete={() => setScreen("ai-draft")}
+            onBack={() => nav("supplier-upload")}
+          />
         )}
         {screen === "ai-draft" && (
-          <AIDraftReview articleDraft={articleDraft} onNext={() => nav("validation")} onBack={() => nav("ai-processing")} />
+          <AIDraftReview articleDraft={articleDraft} onNext={handleValidationStart} onBack={() => nav("ai-processing")} />
         )}
         {screen === "validation" && (
-          <ValidationIssues onNext={() => nav("internal-review")} onBack={() => nav("ai-draft")} />
+          <ValidationIssues onSelectIssue={openDraftAtField} onNext={() => nav("internal-review")} onBack={() => nav("ai-draft")} />
         )}
         {screen === "internal-review" && <InternalReview onBack={() => nav("validation")} />}
       </main>
     </div>
   );
 }
+
+const ISSUE_FIELD_TO_FORM_TARGET: Record<string, string> = {
+  "EAN-13": "ean",
+  "Kalcium (mg)": "calcium",
+  "GLN (leverantor)": "supplierGln",
+  "Innehaller soja": "section:allergens",
+  Produktkategori: "category",
+  "Kolli per forpackning": "casesPerPackage",
+  Produktbild: "section:media",
+  Ursprungsland: "countryOfOrigin",
+};

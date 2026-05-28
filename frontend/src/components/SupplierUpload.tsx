@@ -103,12 +103,12 @@ export function SupplierUpload({ mode, files, error, isSubmitting, onModeChange,
           <span
             style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "11px", fontWeight: 500, letterSpacing: "0.08em" }}
           >
-            STEG 1 AV 4
+            STEG 1
           </span>
         </div>
         <h1 style={{ color: "var(--ms-green)" }}>Ladda upp artikelunderlag</h1>
         <p className="mt-1" style={{ color: "var(--muted-foreground)", fontSize: "15px" }}>
-          Ladda upp produktblad, specifikationer eller befintlig artikeldata. Var AI extraherar och strukturerar informationen at dig.
+          Ladda upp produktblad, specifikationer eller befintlig artikeldata. Du kan ocksa hoppa over detta och fylla i uppgifterna manuellt.
         </p>
       </div>
 
@@ -266,7 +266,7 @@ export function SupplierUpload({ mode, files, error, isSubmitting, onModeChange,
             opacity: canContinue && !isSubmitting ? 1 : 0.7,
           }}
         >
-          {isSubmitting ? "Bearbetar..." : mode === "manual" ? "Fortsatt manuellt" : "Starta AI-extraktion"}
+          {isSubmitting ? "Bearbetar..." : mode === "manual" ? "Ga till steg 2" : "Analysera med AI"}
           <ArrowRight size={16} />
         </button>
       </div>

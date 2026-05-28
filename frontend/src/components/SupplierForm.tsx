@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
 import { CheckCircle2, ArrowRight, ArrowLeft } from "lucide-react";
 import type { ArticleDraft, UploadedFile, UploadMode } from "../App";
 
@@ -6,6 +6,8 @@ interface SupplierFormProps {
   articleDraft: ArticleDraft | null;
   uploadedFiles: UploadedFile[];
   uploadMode: UploadMode;
+  focusTarget?: string | null;
+  onFocusTargetHandled?: () => void;
   onNext: () => void;
   onBack: () => void;
 }
@@ -55,30 +57,60 @@ const SECTION_ORDER: Array<{ id: SectionId; label: string; required: boolean }> 
 
 const ALLERGENS = [
   "Gluten",
-  "Kraftdjur",
-  "Agg",
+  "Kräftdjur",
+  "Ägg",
   "Fisk",
-  "Jordnotter",
+  "Jordnötter",
   "Soja",
-  "Mjolk",
-  "Notter",
+  "Mjölk",
+  "Nötter",
   "Selleri",
   "Senap",
-  "Sesamfron",
+  "Sesamfrön",
   "Svaveldioxid",
   "Lupin",
-  "Blotdjur",
+  "Blötdjur",
 ];
 
-export function SupplierForm({ articleDraft, uploadedFiles, uploadMode, onNext, onBack }: SupplierFormProps) {
+export function SupplierForm({ articleDraft, uploadedFiles, uploadMode, focusTarget = null, onFocusTargetHandled, onNext, onBack }: SupplierFormProps) {
   const [activeSection, setActiveSection] = useState<SectionId>("basic");
   const [formValues, setFormValues] = useState<FormValues>(() => buildFormValues(articleDraft, uploadedFiles));
-  const [allergens, setAllergens] = useState<string[]>(() => articleDraft?.allergens.declared ?? ["Mjolk", "Soja"]);
+  const [allergens, setAllergens] = useState<string[]>(() => articleDraft?.allergens.declared ?? ["Mjölk", "Soja"]);
+  const fieldRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   useEffect(() => {
     setFormValues(buildFormValues(articleDraft, uploadedFiles));
-    setAllergens(articleDraft?.allergens.declared ?? ["Mjolk", "Soja"]);
+    setAllergens(articleDraft?.allergens.declared ?? ["Mjölk", "Soja"]);
   }, [articleDraft, uploadedFiles]);
+
+  useEffect(() => {
+    if (!focusTarget) {
+      return;
+    }
+
+    if (focusTarget.startsWith("section:")) {
+      setActiveSection(focusTarget.replace("section:", "") as SectionId);
+      onFocusTargetHandled?.();
+      return;
+    }
+
+    const targetSection = getSectionForField(focusTarget);
+    if (targetSection) {
+      setActiveSection(targetSection);
+    }
+
+    window.setTimeout(() => {
+      const element = fieldRefs.current[focusTarget];
+      if (!element) {
+        return;
+      }
+
+      element.scrollIntoView({ behavior: "smooth", block: "center" });
+      element.focus();
+      element.select();
+      onFocusTargetHandled?.();
+    }, 0);
+  }, [focusTarget, onFocusTargetHandled]);
 
   const missingCount = countMissing(formValues, articleDraft);
 
@@ -93,7 +125,7 @@ export function SupplierForm({ articleDraft, uploadedFiles, uploadMode, onNext, 
         <div className="mx-auto w-full max-w-[1360px]">
           <div className="mb-1 flex items-center gap-2" style={{ color: "var(--ms-amber)" }}>
             <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "11px", fontWeight: 500, letterSpacing: "0.08em" }}>
-              STEG 2 AV 4
+              STEG 2
             </span>
           </div>
 
@@ -150,14 +182,14 @@ export function SupplierForm({ articleDraft, uploadedFiles, uploadMode, onNext, 
                 <CheckCircle2 size={16} />
               </div>
               <div>
-                <p style={{ fontSize: "16px", fontWeight: 600, color: "var(--foreground)" }}>Underlag fran steg 1</p>
-                <p style={{ fontSize: "13px", color: "var(--muted-foreground)" }}>Leverantorens kallmaterial som foljer med in i artikelutkastet.</p>
+                <p style={{ fontSize: "16px", fontWeight: 600, color: "var(--foreground)" }}>Underlag från steg 1</p>
+                <p style={{ fontSize: "13px", color: "var(--muted-foreground)" }}>Leverantörens källmaterial som följer med in i artikelutkastet.</p>
               </div>
             </div>
 
             <p style={{ fontSize: "13px", color: "var(--muted-foreground)" }}>
               {uploadMode === "manual"
-                ? "Manuellt inmatningslage valdes i steg 1. Inga filer ar kopplade till utkastet annu."
+                ? "Manuellt inmatningslage valdes i steg 1. Inga filer ar kopplade till artikeln."
                 : `${uploadedFiles.length} uppladdade filer foljer med in i artikelutkastet.`}
             </p>
 
@@ -181,12 +213,13 @@ export function SupplierForm({ articleDraft, uploadedFiles, uploadMode, onNext, 
           <section className="rounded-2xl bg-card px-6 py-6 shadow-sm" style={{ border: "1px solid var(--border)" }}>
             <div className="mb-5 flex items-center justify-between gap-4 max-[960px]:flex-col max-[960px]:items-start">
               <div>
-                <p style={{ fontSize: "13px", fontWeight: 600, color: "var(--ms-green)" }}>{getSectionTitle(activeSection)}</p>
+                <p style={{ fontSize: "13px", fontWeight: 600, color: "var(--ms-green)" }}>STEG 2</p>
+                <h1 style={{ color: "var(--ms-green)", fontSize: "30px", fontWeight: 700, letterSpacing: "-0.03em", marginTop: "6px" }}>Verifiera och komplettera</h1>
                 <p style={{ fontSize: "13px", color: "var(--muted-foreground)", marginTop: "4px" }}>{getSectionDescription(activeSection)}</p>
               </div>
             </div>
 
-            {renderSectionContent(activeSection, formValues, allergens, setAllergens, articleDraft, handleValueChange)}
+            {renderSectionContent(activeSection, formValues, allergens, setAllergens, articleDraft, handleValueChange, fieldRefs)}
           </section>
         </div>
       </div>
@@ -203,7 +236,7 @@ export function SupplierForm({ articleDraft, uploadedFiles, uploadMode, onNext, 
             className="flex items-center gap-2 rounded-xl px-6 py-3 transition-all hover:opacity-90"
             style={{ background: "var(--ms-green)", color: "#fff", fontWeight: 600, fontSize: "14px", boxShadow: "0 12px 24px rgba(27,58,45,0.18)" }}
           >
-            Skicka for validering <ArrowRight size={16} />
+            Kor validering <ArrowRight size={16} />
           </button>
         </div>
       </div>
@@ -295,19 +328,20 @@ function renderSectionContent(
   section: SectionId,
   formValues: FormValues,
   allergens: string[],
-  setAllergens: React.Dispatch<React.SetStateAction<string[]>>,
+  setAllergens: Dispatch<SetStateAction<string[]>>,
   articleDraft: ArticleDraft | null,
   onChange: (field: keyof FormValues, value: string) => void,
+  fieldRefs: MutableRefObject<Record<string, HTMLInputElement | null>>,
 ) {
   if (section === "basic") {
     return (
       <div className="grid grid-cols-2 gap-4 max-[980px]:grid-cols-1">
-        <Field label="Artikelnamn" value={formValues.productName} aiExtracted onChange={(value) => onChange("productName", value)} />
-        <Field label="EAN-13" value={formValues.ean} aiExtracted onChange={(value) => onChange("ean", value)} />
-        <Field label="Artikelnummer (leverantor)" value={formValues.articleNumber} aiExtracted onChange={(value) => onChange("articleNumber", value)} />
-        <Field label="Varumarke" value={formValues.brand} aiExtracted onChange={(value) => onChange("brand", value)} />
-        <Field label="Produktkategori" value={formValues.category} aiExtracted onChange={(value) => onChange("category", value)} />
-        <Field label="Kortbeskrivning" value={formValues.shortDescription} aiExtracted full onChange={(value) => onChange("shortDescription", value)} />
+        <Field label="Artikelnamn" fieldId="productName" inputRef={(element) => assignFieldRef(fieldRefs, "productName", element)} value={formValues.productName} aiExtracted onChange={(value) => onChange("productName", value)} />
+        <Field label="EAN-13" fieldId="ean" inputRef={(element) => assignFieldRef(fieldRefs, "ean", element)} value={formValues.ean} aiExtracted onChange={(value) => onChange("ean", value)} />
+        <Field label="Artikelnummer (leverantor)" fieldId="articleNumber" inputRef={(element) => assignFieldRef(fieldRefs, "articleNumber", element)} value={formValues.articleNumber} aiExtracted onChange={(value) => onChange("articleNumber", value)} />
+        <Field label="Varumarke" fieldId="brand" inputRef={(element) => assignFieldRef(fieldRefs, "brand", element)} value={formValues.brand} aiExtracted onChange={(value) => onChange("brand", value)} />
+        <Field label="Produktkategori" fieldId="category" inputRef={(element) => assignFieldRef(fieldRefs, "category", element)} value={formValues.category} aiExtracted onChange={(value) => onChange("category", value)} />
+        <Field label="Kortbeskrivning" fieldId="shortDescription" inputRef={(element) => assignFieldRef(fieldRefs, "shortDescription", element)} value={formValues.shortDescription} aiExtracted full onChange={(value) => onChange("shortDescription", value)} />
       </div>
     );
   }
@@ -315,14 +349,14 @@ function renderSectionContent(
   if (section === "packaging") {
     return (
       <div className="grid grid-cols-3 gap-4 max-[1180px]:grid-cols-2 max-[980px]:grid-cols-1">
-        <Field label="Nettovikt (g)" value={formValues.netWeight} aiExtracted={Boolean(formValues.netWeight)} onChange={(value) => onChange("netWeight", value)} />
-        <Field label="Volym (ml)" value={formValues.volume} aiExtracted={Boolean(formValues.volume)} onChange={(value) => onChange("volume", value)} />
-        <Field label="Forpackningstyp" value={formValues.packagingType} aiExtracted={Boolean(formValues.packagingType)} onChange={(value) => onChange("packagingType", value)} />
-        <Field label="Hojd (mm)" value={formValues.height} onChange={(value) => onChange("height", value)} />
-        <Field label="Bredd (mm)" value={formValues.width} onChange={(value) => onChange("width", value)} />
-        <Field label="Djup (mm)" value={formValues.depth} onChange={(value) => onChange("depth", value)} />
-        <Field label="Kolli per forpackning" value={formValues.casesPerPackage} missing={!formValues.casesPerPackage} onChange={(value) => onChange("casesPerPackage", value)} />
-        <Field label="Vikt per kolli (kg)" value={formValues.caseWeight} missing={!formValues.caseWeight} onChange={(value) => onChange("caseWeight", value)} />
+        <Field label="Nettovikt (g)" fieldId="netWeight" inputRef={(element) => assignFieldRef(fieldRefs, "netWeight", element)} value={formValues.netWeight} aiExtracted={Boolean(formValues.netWeight)} onChange={(value) => onChange("netWeight", value)} />
+        <Field label="Volym (ml)" fieldId="volume" inputRef={(element) => assignFieldRef(fieldRefs, "volume", element)} value={formValues.volume} aiExtracted={Boolean(formValues.volume)} onChange={(value) => onChange("volume", value)} />
+        <Field label="Forpackningstyp" fieldId="packagingType" inputRef={(element) => assignFieldRef(fieldRefs, "packagingType", element)} value={formValues.packagingType} aiExtracted={Boolean(formValues.packagingType)} onChange={(value) => onChange("packagingType", value)} />
+        <Field label="Hojd (mm)" fieldId="height" inputRef={(element) => assignFieldRef(fieldRefs, "height", element)} value={formValues.height} onChange={(value) => onChange("height", value)} />
+        <Field label="Bredd (mm)" fieldId="width" inputRef={(element) => assignFieldRef(fieldRefs, "width", element)} value={formValues.width} onChange={(value) => onChange("width", value)} />
+        <Field label="Djup (mm)" fieldId="depth" inputRef={(element) => assignFieldRef(fieldRefs, "depth", element)} value={formValues.depth} onChange={(value) => onChange("depth", value)} />
+        <Field label="Kolli per forpackning" fieldId="casesPerPackage" inputRef={(element) => assignFieldRef(fieldRefs, "casesPerPackage", element)} value={formValues.casesPerPackage} missing={!formValues.casesPerPackage} onChange={(value) => onChange("casesPerPackage", value)} />
+        <Field label="Vikt per kolli (kg)" fieldId="caseWeight" inputRef={(element) => assignFieldRef(fieldRefs, "caseWeight", element)} value={formValues.caseWeight} missing={!formValues.caseWeight} onChange={(value) => onChange("caseWeight", value)} />
       </div>
     );
   }
@@ -347,6 +381,8 @@ function renderSectionContent(
           <Field
             key={field.key}
             label={field.label}
+            fieldId={field.key}
+            inputRef={(element) => assignFieldRef(fieldRefs, field.key, element)}
             value={formValues[field.key]}
             aiExtracted={Boolean(formValues[field.key])}
             missing={!formValues[field.key]}
@@ -393,11 +429,11 @@ function renderSectionContent(
   if (section === "logistics") {
     return (
       <div className="grid grid-cols-3 gap-4 max-[1180px]:grid-cols-2 max-[980px]:grid-cols-1">
-        <Field label="Hallbarhet (dagar)" value={formValues.shelfLife} aiExtracted onChange={(value) => onChange("shelfLife", value)} />
-        <Field label="Lagringstemperatur" value={formValues.storageTemperature} aiExtracted onChange={(value) => onChange("storageTemperature", value)} />
-        <Field label="Oppnad hallbarhet (dagar)" value={formValues.openedShelfLife} aiExtracted onChange={(value) => onChange("openedShelfLife", value)} />
-        <Field label="Ursprungsland" value={formValues.countryOfOrigin} aiExtracted onChange={(value) => onChange("countryOfOrigin", value)} />
-        <Field label="GLN (leverantor)" value={formValues.supplierGln} missing={!formValues.supplierGln} onChange={(value) => onChange("supplierGln", value)} />
+        <Field label="Hallbarhet (dagar)" fieldId="shelfLife" inputRef={(element) => assignFieldRef(fieldRefs, "shelfLife", element)} value={formValues.shelfLife} aiExtracted onChange={(value) => onChange("shelfLife", value)} />
+        <Field label="Lagringstemperatur" fieldId="storageTemperature" inputRef={(element) => assignFieldRef(fieldRefs, "storageTemperature", element)} value={formValues.storageTemperature} aiExtracted onChange={(value) => onChange("storageTemperature", value)} />
+        <Field label="Oppnad hallbarhet (dagar)" fieldId="openedShelfLife" inputRef={(element) => assignFieldRef(fieldRefs, "openedShelfLife", element)} value={formValues.openedShelfLife} aiExtracted onChange={(value) => onChange("openedShelfLife", value)} />
+        <Field label="Ursprungsland" fieldId="countryOfOrigin" inputRef={(element) => assignFieldRef(fieldRefs, "countryOfOrigin", element)} value={formValues.countryOfOrigin} aiExtracted onChange={(value) => onChange("countryOfOrigin", value)} />
+        <Field label="GLN (leverantor)" fieldId="supplierGln" inputRef={(element) => assignFieldRef(fieldRefs, "supplierGln", element)} value={formValues.supplierGln} missing={!formValues.supplierGln} onChange={(value) => onChange("supplierGln", value)} />
       </div>
     );
   }
@@ -418,18 +454,22 @@ function renderSectionContent(
 
 function Field({
   label,
+  fieldId,
   value,
   onChange,
   aiExtracted,
   missing,
   full,
+  inputRef,
 }: {
   label: string;
+  fieldId?: string;
   value: string;
   onChange: (value: string) => void;
   aiExtracted?: boolean;
   missing?: boolean;
   full?: boolean;
+  inputRef?: (element: HTMLInputElement | null) => void;
 }) {
   return (
     <div className={full ? "col-span-full" : ""}>
@@ -475,6 +515,8 @@ function Field({
         </div>
 
         <input
+          id={fieldId}
+          ref={inputRef}
           value={value}
           onChange={(event) => onChange(event.target.value)}
           placeholder={missing ? "Fyll i..." : ""}
@@ -490,6 +532,47 @@ function Field({
       </div>
     </div>
   );
+}
+
+function assignFieldRef(
+  refs: MutableRefObject<Record<string, HTMLInputElement | null>>,
+  key: string,
+  element: HTMLInputElement | null,
+) {
+  refs.current[key] = element;
+}
+
+function getSectionForField(field: string): SectionId | null {
+  const sectionMap: Record<string, SectionId> = {
+    productName: "basic",
+    ean: "basic",
+    articleNumber: "basic",
+    brand: "basic",
+    category: "basic",
+    shortDescription: "basic",
+    netWeight: "packaging",
+    volume: "packaging",
+    packagingType: "packaging",
+    height: "packaging",
+    width: "packaging",
+    depth: "packaging",
+    casesPerPackage: "packaging",
+    caseWeight: "packaging",
+    energyKj: "nutrition",
+    energyKcal: "nutrition",
+    fat: "nutrition",
+    saturatedFat: "nutrition",
+    carbohydrates: "nutrition",
+    sugars: "nutrition",
+    fiber: "nutrition",
+    protein: "nutrition",
+    salt: "nutrition",
+    calcium: "nutrition",
+    countryOfOrigin: "logistics",
+    supplierGln: "logistics",
+  };
+
+  return sectionMap[field] ?? null;
 }
 
 function formatFileSize(sizeInBytes: number) {
