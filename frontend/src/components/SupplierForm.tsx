@@ -2,19 +2,26 @@ import { useEffect, useRef, useState, type Dispatch, type MutableRefObject, type
 import { CheckCircle2, ArrowRight, ArrowLeft } from "lucide-react";
 import type { ArticleDraft, UploadedFile, UploadMode } from "../App";
 
+export interface SupplierFormSubmission {
+  values: FormValues;
+  allergens: string[];
+}
+
 interface SupplierFormProps {
   articleDraft: ArticleDraft | null;
   uploadedFiles: UploadedFile[];
   uploadMode: UploadMode;
   focusTarget?: string | null;
+  initialSubmission?: SupplierFormSubmission | null;
   onFocusTargetHandled?: () => void;
+  onSubmit: (submission: SupplierFormSubmission) => void;
   onNext: () => void;
   onBack: () => void;
 }
 
 type SectionId = "basic" | "packaging" | "nutrition" | "allergens" | "logistics" | "media";
 
-type FormValues = {
+export type FormValues = {
   productName: string;
   ean: string;
   articleNumber: string;
@@ -72,16 +79,17 @@ const ALLERGENS = [
   "Blötdjur",
 ];
 
-export function SupplierForm({ articleDraft, uploadedFiles, uploadMode, focusTarget = null, onFocusTargetHandled, onNext, onBack }: SupplierFormProps) {
+export function SupplierForm({ articleDraft, uploadedFiles, uploadMode, focusTarget = null, initialSubmission = null, onFocusTargetHandled, onSubmit, onNext, onBack }: SupplierFormProps) {
   const [activeSection, setActiveSection] = useState<SectionId>("basic");
-  const [formValues, setFormValues] = useState<FormValues>(() => buildFormValues(articleDraft, uploadedFiles));
-  const [allergens, setAllergens] = useState<string[]>(() => articleDraft?.allergens.declared ?? ["Mjölk", "Soja"]);
+  const [formValues, setFormValues] = useState<FormValues>(() => (initialSubmission ?? buildInitialSubmission(articleDraft, uploadedFiles)).values);
+  const [allergens, setAllergens] = useState<string[]>(() => (initialSubmission ?? buildInitialSubmission(articleDraft, uploadedFiles)).allergens);
   const fieldRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   useEffect(() => {
-    setFormValues(buildFormValues(articleDraft, uploadedFiles));
-    setAllergens(articleDraft?.allergens.declared ?? ["Mjölk", "Soja"]);
-  }, [articleDraft, uploadedFiles]);
+    const nextSubmission = initialSubmission ?? buildInitialSubmission(articleDraft, uploadedFiles);
+    setFormValues(nextSubmission.values);
+    setAllergens(nextSubmission.allergens);
+  }, [articleDraft, uploadedFiles, initialSubmission]);
 
   useEffect(() => {
     if (!focusTarget) {
@@ -232,7 +240,10 @@ export function SupplierForm({ articleDraft, uploadedFiles, uploadMode, focusTar
 
           <button
             type="button"
-            onClick={onNext}
+            onClick={() => {
+              onSubmit({ values: formValues, allergens });
+              onNext();
+            }}
             className="flex items-center gap-2 rounded-xl px-6 py-3 transition-all hover:opacity-90"
             style={{ background: "var(--ms-green)", color: "#fff", fontWeight: 600, fontSize: "14px", boxShadow: "0 12px 24px rgba(27,58,45,0.18)" }}
           >
@@ -246,6 +257,13 @@ export function SupplierForm({ articleDraft, uploadedFiles, uploadMode, focusTar
   function handleValueChange(field: keyof FormValues, value: string) {
     setFormValues((current) => ({ ...current, [field]: value }));
   }
+}
+
+export function buildInitialSubmission(articleDraft: ArticleDraft | null, uploadedFiles: UploadedFile[]): SupplierFormSubmission {
+  return {
+    values: buildFormValues(articleDraft, uploadedFiles),
+    allergens: articleDraft?.allergens.declared ?? ["Mjölk", "Soja"],
+  };
 }
 
 function buildFormValues(articleDraft: ArticleDraft | null, uploadedFiles: UploadedFile[]): FormValues {

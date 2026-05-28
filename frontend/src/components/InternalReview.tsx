@@ -1,7 +1,11 @@
 import { useState, type ElementType } from "react";
 import { CheckCircle2, Clock, AlertCircle, MessageSquare, ThumbsUp, ThumbsDown, Eye, Search } from "lucide-react";
+import type { SupplierFormSubmission } from "./SupplierForm";
 
 interface InternalReviewProps {
+  submission: SupplierFormSubmission | null;
+  blockingCount: number;
+  warningCount: number;
   onBack: () => void;
 }
 
@@ -39,10 +43,14 @@ const STATUS_CONFIG: Record<
   needs_info: { label: "Behover info", color: "var(--ms-status-info)", bg: "rgba(46,107,170,0.08)", border: "rgba(46,107,170,0.2)", icon: MessageSquare },
 };
 
-export function InternalReview({ onBack }: InternalReviewProps) {
+export function InternalReview({ submission, blockingCount, warningCount, onBack }: InternalReviewProps) {
   const [selected, setSelected] = useState<string>("A001");
   const [filter, setFilter] = useState<ArticleStatus | "all">("all");
   const [search, setSearch] = useState("");
+
+  if (!submission) {
+    return null;
+  }
 
   const filtered = ARTICLES.filter(
     (article) =>
@@ -178,8 +186,8 @@ export function InternalReview({ onBack }: InternalReviewProps) {
             <div className="mb-6 grid grid-cols-4 gap-3">
               {[
                 { label: "AI-kvalitetspoang", value: `${article.aiScore}%`, color: article.aiScore >= 90 ? "var(--ms-status-ok)" : article.aiScore >= 75 ? "var(--ms-amber)" : "var(--ms-status-error)" },
-                { label: "Blockerande problem", value: article.issues.toString(), color: article.issues === 0 ? "var(--ms-status-ok)" : "var(--ms-status-error)" },
-                { label: "Kategori", value: article.category, color: "var(--foreground)" },
+                { label: "Blockerande problem", value: String(blockingCount), color: blockingCount === 0 ? "var(--ms-status-ok)" : "var(--ms-status-error)" },
+                { label: "Kategori", value: submission.values.category || article.category, color: "var(--foreground)" },
                 { label: "Inlamnad", value: article.submitted, color: "var(--foreground)" },
               ].map((metric) => (
                 <div key={metric.label} className="rounded-xl p-4" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
@@ -195,12 +203,13 @@ export function InternalReview({ onBack }: InternalReviewProps) {
               </div>
               <div>
                 {[
-                  { label: "EAN-13", value: article.ean },
+                  { label: "EAN-13", value: submission.values.ean || article.ean },
                   { label: "Leverantor", value: article.supplier },
-                  { label: "Kategori", value: article.category },
-                  { label: "Produktkategori (M&S)", value: "Drycker > Vaxtbaserat" },
-                  { label: "Ursprungsland", value: "Sverige" },
-                  { label: "Hallbarhet", value: "365 dagar" },
+                  { label: "Kategori", value: submission.values.category || article.category },
+                  { label: "Produktkategori (M&S)", value: submission.values.category || "Ej vald" },
+                  { label: "Ursprungsland", value: submission.values.countryOfOrigin || "Ej angivet" },
+                  { label: "Hallbarhet", value: `${submission.values.shelfLife || "-"} dagar` },
+                  { label: "Varningar", value: String(warningCount) },
                 ].map((row) => (
                   <div key={row.label} className="flex justify-between px-5 py-2.5" style={{ borderBottom: "1px solid var(--border)" }}>
                     <span style={{ fontSize: "13px", color: "var(--muted-foreground)" }}>{row.label}</span>

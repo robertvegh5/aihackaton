@@ -1,33 +1,16 @@
 import { AlertCircle, AlertTriangle, Info, ArrowRight, ArrowLeft } from "lucide-react";
+import type { Step3Issue } from "../App";
 
 interface ValidationIssuesProps {
+  issues: Step3Issue[];
+  blockingCount: number;
+  warningCount: number;
   onSelectIssue: (field: string) => void;
   onNext: () => void;
   onBack: () => void;
 }
 
-type Severity = "blocking" | "warning" | "info";
-
-interface Issue {
-  id: string;
-  severity: Severity;
-  code: string;
-  title: string;
-  detail: string;
-  field: string;
-  section: string;
-}
-
-const ISSUES: Issue[] = [
-  { id: "v1", severity: "blocking", code: "VAL-101", title: "EAN saknar kontrollsiffra", detail: "Den angivna EAN-koden 7394376615808 har felaktig kontrollsiffra. Korrekt EAN bor sluta pa 0.", field: "EAN-13", section: "Grunduppgifter" },
-  { id: "v2", severity: "blocking", code: "VAL-203", title: "Kalciumvarde saknas", detail: "Kalcium per 100 ml ar ett obligatoriskt naringsvarde for livsmedel i kategori 'Vaxtbaserade drycker'.", field: "Kalcium (mg)", section: "Naringsvarden" },
-  { id: "v3", severity: "blocking", code: "VAL-301", title: "GLN-nummer kravs", detail: "Leverantorens GLN-nummer ar obligatoriskt for EDI-hantering och artikelregistrering.", field: "GLN (leverantor)", section: "Logistik" },
-  { id: "v4", severity: "warning", code: "VAL-412", title: "Allergentext kan vara ofullstandig", detail: "Sojamarkning anges som 'kan innehalla spar'. Kontrollera om produkten innehaller soja som ingrediens, inte enbart spar.", field: "Innehaller soja", section: "Allergener" },
-  { id: "v5", severity: "warning", code: "VAL-508", title: "Kategori har lag AI-konfidens", detail: "'Vaxtbaserade drycker' extraherades med 82% konfidens. Verifiera mot Martin & Serveras produktkatalog.", field: "Produktkategori", section: "Grunduppgifter" },
-  { id: "v6", severity: "warning", code: "VAL-601", title: "Kolli per forpackning saknas", detail: "Logistikdata ar ofullstandig utan kolliantal. Kravs for orderhantering.", field: "Kolli per forpackning", section: "Logistik" },
-  { id: "v7", severity: "info", code: "VAL-701", title: "Bilder saknas", detail: "Inga produktbilder ar uppladdade. Bilder ar ej obligatoriska men rekommenderas starkt for ecommerce.", field: "Produktbild", section: "Bilder och media" },
-  { id: "v8", severity: "info", code: "VAL-702", title: "Ursprungsland rekommenderas pa engelska", detail: "For exportartiklar rekommenderas att ursprungsland anges pa engelska ('Sweden') i tillagg till svenska.", field: "Ursprungsland", section: "Logistik" },
-];
+type Severity = Step3Issue["severity"];
 
 const SEVERITY_CONFIG = {
   blocking: { color: "var(--ms-status-error)", bg: "rgba(192,57,43,0.07)", border: "rgba(192,57,43,0.18)", label: "Blockerar", icon: AlertCircle },
@@ -35,10 +18,8 @@ const SEVERITY_CONFIG = {
   info: { color: "var(--ms-status-info)", bg: "rgba(46,107,170,0.06)", border: "rgba(46,107,170,0.15)", label: "Info", icon: Info },
 };
 
-export function ValidationIssues({ onSelectIssue, onNext, onBack }: ValidationIssuesProps) {
-  const blocking = ISSUES.filter((issue) => issue.severity === "blocking");
-  const warnings = ISSUES.filter((issue) => issue.severity === "warning");
-  const canSubmit = false;
+export function ValidationIssues({ issues, blockingCount, warningCount, onSelectIssue, onNext, onBack }: ValidationIssuesProps) {
+  const canSubmit = blockingCount === 0;
 
   return (
     <div className="flex h-full flex-col">
@@ -60,14 +41,14 @@ export function ValidationIssues({ onSelectIssue, onNext, onBack }: ValidationIs
           </div>
           <div className="flex flex-shrink-0 gap-2">
             <StatusBadge
-              count={blocking.length}
+              count={blockingCount}
               label="blockerar"
               color="var(--ms-status-error)"
               bg="rgba(192,57,43,0.08)"
               border="rgba(192,57,43,0.2)"
             />
             <StatusBadge
-              count={warnings.length}
+              count={warningCount}
               label="varningar"
               color="var(--ms-amber)"
               bg="rgba(200,151,62,0.1)"
@@ -80,7 +61,7 @@ export function ValidationIssues({ onSelectIssue, onNext, onBack }: ValidationIs
       <div className="flex-1 overflow-hidden" style={{ display: "grid", gridTemplateColumns: "1fr 340px" }}>
         <div className="flex flex-col gap-2 overflow-y-auto border-r border-border px-8 py-5">
           {(["blocking", "warning", "info"] as Severity[]).map((severity) => {
-            const severityIssues = ISSUES.filter((issue) => issue.severity === severity);
+            const severityIssues = issues.filter((issue) => issue.severity === severity);
             if (!severityIssues.length) {
               return null;
             }
@@ -115,8 +96,8 @@ export function ValidationIssues({ onSelectIssue, onNext, onBack }: ValidationIs
             </div>
             <div className="p-4">
               <div className="flex flex-col gap-2">
-                <InfoRow label="Blockerande problem" value={String(blocking.length)} valueColor="var(--ms-status-error)" />
-                <InfoRow label="Varningar" value={String(warnings.length)} />
+                <InfoRow label="Blockerande problem" value={String(blockingCount)} valueColor="var(--ms-status-error)" />
+                <InfoRow label="Varningar" value={String(warningCount)} />
                 <InfoRow label="Mest kritisk sektion" value="Naringsvarden" />
                 <InfoRow label="Nasta steg" value="Ratta i steg 2" />
               </div>
@@ -130,7 +111,7 @@ export function ValidationIssues({ onSelectIssue, onNext, onBack }: ValidationIs
           <ArrowLeft size={16} /> Tillbaka
         </button>
         <div className="flex items-center gap-3">
-          {!canSubmit && <p style={{ fontSize: "13px", color: "var(--ms-status-error)" }}>{blocking.length} saker maste andras innan du kan ga vidare</p>}
+          {!canSubmit && <p style={{ fontSize: "13px", color: "var(--ms-status-error)" }}>{blockingCount} saker maste andras innan du kan ga vidare</p>}
           <button
             onClick={onNext}
             disabled={!canSubmit}
@@ -156,7 +137,7 @@ function IssueButton({
   issue,
   onClick,
 }: {
-  issue: Issue;
+  issue: Step3Issue;
   onClick: () => void;
 }) {
   const config = SEVERITY_CONFIG[issue.severity];

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { SupplierUpload } from "./components/SupplierUpload";
-import { SupplierForm } from "./components/SupplierForm";
+import { SupplierForm, type SupplierFormSubmission } from "./components/SupplierForm";
 import { AIProcessing } from "./components/AIProcessing";
 import { AIDraftReview } from "./components/AIDraftReview";
 import { ValidationIssues } from "./components/ValidationIssues";
@@ -71,6 +71,16 @@ export type ArticleDraft = {
   };
 };
 
+export type Step3Issue = {
+  id: string;
+  severity: "blocking" | "warning" | "info";
+  code: string;
+  title: string;
+  detail: string;
+  field: string;
+  section: string;
+};
+
 type Screen =
   | "supplier-upload"
   | "supplier-form"
@@ -116,6 +126,7 @@ export function App() {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isExtracting, setIsExtracting] = useState(false);
   const [articleDraft, setArticleDraft] = useState<ArticleDraft | null>(null);
+  const [formSubmission, setFormSubmission] = useState<SupplierFormSubmission | null>(null);
   const [formFocusTarget, setFormFocusTarget] = useState<string | null>(null);
   const [step2Available, setStep2Available] = useState(false);
   const [step3Available, setStep3Available] = useState(false);
@@ -128,6 +139,10 @@ export function App() {
     validation: step3Available,
     "internal-review": step3Available,
   };
+
+  const step3Issues = formSubmission ? buildStep3Issues(formSubmission, articleDraft) : [];
+  const blockingIssues = step3Issues.filter((issue) => issue.severity === "blocking");
+  const warningIssues = step3Issues.filter((issue) => issue.severity === "warning");
 
   const nav = (nextScreen: Screen) => {
     if (!screenEnabled[nextScreen]) {
@@ -145,8 +160,10 @@ export function App() {
   const handleStartFlow = () => {
     if (uploadMode === "manual") {
       setArticleDraft(null);
+      setFormSubmission(null);
       setUploadError(null);
       setStep2Available(true);
+      setStep3Available(false);
       setScreen("supplier-form");
       return;
     }
@@ -156,6 +173,8 @@ export function App() {
     }
 
     setUploadError(null);
+    setFormSubmission(null);
+    setStep3Available(false);
     setScreen("ai-processing");
   };
 
@@ -195,6 +214,11 @@ export function App() {
   const handleValidationStart = () => {
     setStep3Available(true);
     setScreen("validation");
+  };
+
+  const handleFormSubmit = (submission: SupplierFormSubmission) => {
+    setFormSubmission(submission);
+    setStep3Available(true);
   };
 
   return (
@@ -338,7 +362,9 @@ export function App() {
             uploadedFiles={uploadedFiles}
             uploadMode={uploadMode}
             focusTarget={formFocusTarget}
+            initialSubmission={formSubmission}
             onFocusTargetHandled={() => setFormFocusTarget(null)}
+            onSubmit={handleFormSubmit}
             onNext={handleValidationStart}
             onBack={() => nav("supplier-upload")}
           />
@@ -357,9 +383,23 @@ export function App() {
           <AIDraftReview articleDraft={articleDraft} onNext={handleValidationStart} onBack={() => nav("ai-processing")} />
         )}
         {screen === "validation" && (
-          <ValidationIssues onSelectIssue={openDraftAtField} onNext={() => nav("internal-review")} onBack={() => nav("ai-draft")} />
+          <ValidationIssues
+            issues={step3Issues}
+            blockingCount={blockingIssues.length}
+            warningCount={warningIssues.length}
+            onSelectIssue={openDraftAtField}
+            onNext={() => nav("internal-review")}
+            onBack={() => nav("supplier-form")}
+          />
         )}
-        {screen === "internal-review" && <InternalReview onBack={() => nav("validation")} />}
+        {screen === "internal-review" && (
+          <InternalReview
+            submission={formSubmission}
+            blockingCount={blockingIssues.length}
+            warningCount={warningIssues.length}
+            onBack={() => nav("validation")}
+          />
+        )}
       </main>
     </div>
   );
@@ -367,7 +407,6 @@ export function App() {
 
 const ISSUE_FIELD_TO_FORM_TARGET: Record<string, string> = {
   "EAN-13": "ean",
-  "Kalcium (mg)": "calcium",
   "GLN (leverantor)": "supplierGln",
   "Innehaller soja": "section:allergens",
   Produktkategori: "category",
@@ -375,3 +414,161 @@ const ISSUE_FIELD_TO_FORM_TARGET: Record<string, string> = {
   Produktbild: "section:media",
   Ursprungsland: "countryOfOrigin",
 };
+
+function buildStep3Issues(submission: SupplierFormSubmission, articleDraft: ArticleDraft | null): Step3Issue[] {
+  const issues: Step3Issue[] = [];
+  const eanDigits = submission.values.ean.replace(/\D/g, "");
+  const energyKj = submission.values.energyKj.trim();
+  const fat = submission.values.fat.trim();
+  const carbohydrates = submission.values.carbohydrates.trim();
+  const protein = submission.values.protein.trim();
+  const salt = submission.values.salt.trim();
+  const shortDescription = submission.values.shortDescription.trim();
+  const hasDisplayImage = Boolean(articleDraft?.displayImages.length);
+
+  if (eanDigits.length !== 13) {
+    issues.push({
+      id: "v1",
+      severity: "blocking",
+      code: "VAL-101",
+      title: "EAN maste innehalla 13 siffror",
+      detail: "Skriv in ett EAN-nummer med exakt 13 siffror i fältet EAN-13.",
+      field: "EAN-13",
+      section: "Grunduppgifter",
+    });
+  }
+
+  if (!submission.values.productName.trim()) {
+    issues.push({
+      id: "v2",
+      severity: "blocking",
+      code: "VAL-102",
+      title: "Artikelnamn saknas",
+      detail: "Fyll i ett tydligt artikelnamn i fältet Artikelnamn.",
+      field: "productName",
+      section: "Grunduppgifter",
+    });
+  }
+
+  if (!submission.values.brand.trim()) {
+    issues.push({
+      id: "v3",
+      severity: "blocking",
+      code: "VAL-103",
+      title: "Varumarke saknas",
+      detail: "Fyll i varumärke i fältet Varumärke.",
+      field: "brand",
+      section: "Grunduppgifter",
+    });
+  }
+
+  if (!submission.values.category.trim()) {
+    issues.push({
+      id: "v4",
+      severity: "blocking",
+      code: "VAL-104",
+      title: "Produktkategori saknas",
+      detail: "Välj eller skriv in en produktkategori i fältet Produktkategori.",
+      field: "category",
+      section: "Grunduppgifter",
+    });
+  }
+
+  if (!energyKj || !fat || !carbohydrates || !protein || !salt) {
+    issues.push({
+      id: "v5",
+      severity: "blocking",
+      code: "VAL-204",
+      title: "Naringsvarden ar inte kompletta",
+      detail: "Fyll i Energi, Fett, Kolhydrater, Protein och Salt under Näringsvärden.",
+      field: "section:nutrition",
+      section: "Naringsvarden",
+    });
+  }
+
+  if (!submission.values.supplierGln.trim()) {
+    issues.push({
+      id: "v6",
+      severity: "blocking",
+      code: "VAL-301",
+      title: "GLN-nummer kravs",
+      detail: "Fyll i leverantörens GLN i fältet GLN (leverantör).",
+      field: "GLN (leverantor)",
+      section: "Logistik",
+    });
+  }
+
+  if (!submission.values.casesPerPackage.trim()) {
+    issues.push({
+      id: "v7",
+      severity: "blocking",
+      code: "VAL-302",
+      title: "Kolli per forpackning saknas",
+      detail: "Fyll i Kolli per förpackning under Förpackning och mått.",
+      field: "Kolli per forpackning",
+      section: "Forpackning och matt",
+    });
+  }
+
+  if (!submission.values.caseWeight.trim()) {
+    issues.push({
+      id: "v8",
+      severity: "blocking",
+      code: "VAL-303",
+      title: "Vikt per kolli saknas",
+      detail: "Fyll i Vikt per kolli (kg) under Förpackning och mått.",
+      field: "caseWeight",
+      section: "Forpackning och matt",
+    });
+  }
+
+  if (!shortDescription || shortDescription.length < 20) {
+    issues.push({
+      id: "v9",
+      severity: "warning",
+      code: "VAL-401",
+      title: "Kortbeskrivningen ar kort",
+      detail: "Beskrivningen blir tydligare om du skriver minst 20 tecken i Kortbeskrivning.",
+      field: "shortDescription",
+      section: "Grunduppgifter",
+    });
+  }
+
+  if (submission.allergens.includes("Soja")) {
+    issues.push({
+      id: "v10",
+      severity: "warning",
+      code: "VAL-402",
+      title: "Kontrollera allergenmarkeringen for soja",
+      detail: "Säkerställ att soja är markerad rätt i allergenlistan och i produkttexten.",
+      field: "Innehaller soja",
+      section: "Allergener",
+    });
+  }
+
+  if (!hasDisplayImage) {
+    issues.push({
+      id: "v11",
+      severity: "info",
+      code: "VAL-701",
+      title: "Bilder saknas",
+      detail: "Lägg gärna till en produktbild i Bilder och media för en bättre artikelpresentation.",
+      field: "Produktbild",
+      section: "Bilder och media",
+    });
+  }
+
+  if (submission.values.countryOfOrigin.trim()) {
+    issues.push({
+      id: "v12",
+      severity: "info",
+      code: "VAL-702",
+      title: "Ursprungsland ar ifyllt",
+      detail: "Kontrollera att ursprungslandet är skrivet på det sätt ni vill visa det internt och externt.",
+      field: "Ursprungsland",
+      section: "Logistik",
+    });
+  }
+
+  return issues;
+}
