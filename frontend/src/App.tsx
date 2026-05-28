@@ -97,18 +97,15 @@ const PAIRS = [
     id: "pair1",
     label: "Par 1",
     sublabel: "Leverantorsflode",
-    screens: [
-      { id: "supplier-upload" as Screen, label: "1A · Uppladdning" },
-      { id: "supplier-form" as Screen, label: "1B · Artikelformular" },
-    ],
+    screens: [{ id: "supplier-upload" as Screen, label: "Uppladdning" }],
   },
   {
     id: "pair2",
     label: "Par 2",
     sublabel: "AI-extraktion",
     screens: [
-      { id: "ai-processing" as Screen, label: "2A · Bearbetning" },
-      { id: "ai-draft" as Screen, label: "2B · Utkastgranskning" },
+      { id: "ai-processing" as Screen, label: "Bearbetning" },
+      { id: "supplier-form" as Screen, label: "Artikelformular" },
     ],
   },
   {
@@ -222,7 +219,7 @@ export function App() {
     "supplier-upload": portalMode === "supplier",
     "supplier-form": portalMode === "supplier" && step2Available,
     "ai-processing": portalMode === "supplier" && uploadMode === "upload" && uploadedFiles.length > 0,
-    "ai-draft": portalMode === "supplier" && step2Available,
+    "ai-draft": false,
     validation: portalMode === "supplier" && step3Available,
     "internal-review": portalMode === "supplier" ? step3Available : portalMode === "internal",
   };
@@ -330,7 +327,7 @@ export function App() {
   }, [uploadMode, uploadedFiles]);
 
   const handleProcessingComplete = useCallback(() => {
-    setScreen("ai-draft");
+    setScreen("supplier-form");
   }, []);
 
   const handleValidationStart = () => {
