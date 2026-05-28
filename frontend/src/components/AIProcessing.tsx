@@ -1,10 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { motion } from "motion/react";
 import { FileText, FileSpreadsheet, Cpu, CheckCircle2, ArrowRight } from "lucide-react";
+import type { ArticleDraft, UploadedFile } from "../App";
 
 interface AIProcessingProps {
   onNext: () => void;
   onBack: () => void;
+  uploadedFiles: UploadedFile[];
+  articleDraft: ArticleDraft | null;
 }
 
 const STEPS = [
@@ -18,29 +21,14 @@ const STEPS = [
   { id: 8, label: "Genererar artikelutkast", detail: "Satter samman komplett artikelprofil", duration: 800 },
 ];
 
-export function AIProcessing({ onNext, onBack }: AIProcessingProps) {
-  const [currentStep, setCurrentStep] = useState(0);
-  const [done, setDone] = useState(false);
+export function AIProcessing({ onNext, onBack, uploadedFiles, articleDraft }: AIProcessingProps) {
+  const currentStep = articleDraft ? STEPS.length : Math.max(1, STEPS.length - 2);
+  const done = Boolean(articleDraft);
 
   useEffect(() => {
-    let totalDelay = 0;
-    const timeouts: number[] = [];
-
-    STEPS.forEach((step, index) => {
-      totalDelay += step.duration;
-      timeouts.push(
-        window.setTimeout(() => {
-          setCurrentStep(index + 1);
-          if (index === STEPS.length - 1) {
-            timeouts.push(window.setTimeout(() => setDone(true), 400));
-          }
-        }, totalDelay),
-      );
-    });
-
-    return () => {
-      timeouts.forEach((timeout) => window.clearTimeout(timeout));
-    };
+    if (articleDraft) {
+      return;
+    }
   }, []);
 
   const progress = Math.round((currentStep / STEPS.length) * 100);
@@ -69,8 +57,8 @@ export function AIProcessing({ onNext, onBack }: AIProcessingProps) {
                 <FileText size={18} style={{ color: "#c0392b" }} />
               </div>
               <div>
-                <p style={{ fontSize: "12px", fontWeight: 600, color: "var(--foreground)" }}>Produktblad_Oatly_2024.pdf</p>
-                <p style={{ fontSize: "11px", color: "var(--muted-foreground)" }}>2.4 MB · 8 sidor</p>
+                <p style={{ fontSize: "12px", fontWeight: 600, color: "var(--foreground)" }}>{uploadedFiles[0]?.name ?? "Inga dokument valda"}</p>
+                <p style={{ fontSize: "11px", color: "var(--muted-foreground)" }}>{uploadedFiles[0] ? `${Math.round(uploadedFiles[0].size / 1024)} KB` : "Kor steg 1 for att ladda upp filer"}</p>
               </div>
             </div>
             <div className="flex flex-1 items-center gap-3">
@@ -78,8 +66,8 @@ export function AIProcessing({ onNext, onBack }: AIProcessingProps) {
                 <FileSpreadsheet size={18} style={{ color: "var(--ms-green)" }} />
               </div>
               <div>
-                <p style={{ fontSize: "12px", fontWeight: 600, color: "var(--foreground)" }}>Artikeldata_Q4.xlsx</p>
-                <p style={{ fontSize: "11px", color: "var(--muted-foreground)" }}>148 KB · 1 ark</p>
+                <p style={{ fontSize: "12px", fontWeight: 600, color: "var(--foreground)" }}>article-draft.json</p>
+                <p style={{ fontSize: "11px", color: "var(--muted-foreground)" }}>{articleDraft ? articleDraft.status : "Vantar pa extraktion"}</p>
               </div>
             </div>
             <div
@@ -93,7 +81,7 @@ export function AIProcessing({ onNext, onBack }: AIProcessingProps) {
           <div className="px-5 pt-4 pb-2">
             <div className="mb-2 flex items-center justify-between">
               <span style={{ fontSize: "12px", fontWeight: 600, color: "var(--foreground)" }}>
-                {done ? "Extraktion klar" : "Bearbetar..."}
+                {done ? "Extraktion klar" : "Extraktion redan kord i steg 1"}
               </span>
               <span style={{ fontSize: "12px", fontFamily: "'JetBrains Mono', monospace", color: "var(--ms-green)", fontWeight: 500 }}>
                 {progress}%
@@ -157,10 +145,28 @@ export function AIProcessing({ onNext, onBack }: AIProcessingProps) {
             className="grid w-full max-w-xl grid-cols-4 gap-3"
           >
             {[
-              { label: "Falt extraherade", value: "34", sub: "av 40 totalt" },
-              { label: "AI-konfidenspoang", value: "87%", sub: "genomsnitt" },
-              { label: "Saknade falt", value: "6", sub: "kraver granskning" },
-              { label: "Allergenmarkeringar", value: "2", sub: "identifierade" },
+              {
+                label: "Falt extraherade",
+                value: articleDraft ? String(Math.max(0, 11 - articleDraft.missingFields.length)) : "-",
+                sub: "i article-draft",
+              },
+              {
+                label: "AI-konfidenspoang",
+                value: articleDraft
+                  ? `${Math.round(((articleDraft.confidence.product + articleDraft.confidence.ingredients + articleDraft.confidence.allergens + articleDraft.confidence.nutrition) / 4) * 100)}%`
+                  : "-",
+                sub: "genomsnitt",
+              },
+              {
+                label: "Saknade falt",
+                value: articleDraft ? String(articleDraft.missingFields.length) : "-",
+                sub: "kraver granskning",
+              },
+              {
+                label: "Allergenmarkeringar",
+                value: articleDraft ? String(articleDraft.allergens.declared.length) : "-",
+                sub: "identifierade",
+              },
             ].map((stat) => (
               <div key={stat.label} className="rounded-xl p-4 text-center" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
                 <p style={{ fontSize: "24px", fontWeight: 700, color: "var(--ms-green)", letterSpacing: "-0.02em" }}>{stat.value}</p>
@@ -182,15 +188,15 @@ export function AIProcessing({ onNext, onBack }: AIProcessingProps) {
         </button>
         <button
           onClick={onNext}
-          disabled={!done}
+          disabled={!done || !articleDraft}
           className="flex items-center gap-2 rounded-lg px-5 py-2.5 transition-all"
           style={{
-            background: done ? "var(--ms-green)" : "var(--muted)",
-            color: done ? "#fff" : "var(--muted-foreground)",
+            background: done && articleDraft ? "var(--ms-green)" : "var(--muted)",
+            color: done && articleDraft ? "#fff" : "var(--muted-foreground)",
             fontWeight: 600,
             fontSize: "14px",
-            cursor: done ? "pointer" : "not-allowed",
-            opacity: done ? 1 : 0.7,
+            cursor: done && articleDraft ? "pointer" : "not-allowed",
+            opacity: done && articleDraft ? 1 : 0.7,
           }}
         >
           Granska AI-utkast <ArrowRight size={16} />

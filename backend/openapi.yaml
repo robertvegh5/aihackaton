@@ -465,9 +465,19 @@ components:
       type: object
       required:
         - articleDraft
+        - extractionEngine
       properties:
         articleDraft:
           $ref: '#/components/schemas/ArticleDraft'
+        extractionEngine:
+          type: string
+          enum:
+            - azure
+            - pdf-parse
+            - none
+        extractionWarning:
+          type: string
+          nullable: true
 
     ValidateResponse:
       type: object

@@ -302,10 +302,10 @@ export function App() {
           />
         )}
         {screen === "ai-processing" && (
-          <AIProcessing onNext={() => nav("ai-draft")} onBack={() => nav("supplier-form")} />
+          <AIProcessing uploadedFiles={uploadedFiles} articleDraft={articleDraft} onNext={() => nav("ai-draft")} onBack={() => nav("supplier-form")} />
         )}
         {screen === "ai-draft" && (
-          <AIDraftReview onNext={() => nav("validation")} onBack={() => nav("ai-processing")} />
+          <AIDraftReview articleDraft={articleDraft} onNext={() => nav("validation")} onBack={() => nav("ai-processing")} />
         )}
         {screen === "validation" && (
           <ValidationIssues onNext={() => nav("internal-review")} onBack={() => nav("ai-draft")} />
