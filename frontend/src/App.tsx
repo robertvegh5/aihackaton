@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
+import { ArrowRight, ClipboardList, ShieldCheck } from "lucide-react";
 import { SupplierUpload } from "./components/SupplierUpload";
 import { SupplierForm, type SupplierFormSubmission } from "./components/SupplierForm";
 import { AIProcessing } from "./components/AIProcessing";
@@ -89,6 +90,8 @@ type Screen =
   | "validation"
   | "internal-review";
 
+type PortalMode = "landing" | "supplier" | "internal";
+
 const PAIRS = [
   {
     id: "pair1",
@@ -127,7 +130,83 @@ const HEADER_NAV_ITEMS: Array<{ id: Screen; label: string }> = [
   { id: "internal-review", label: "Intern granskning" },
 ];
 
+const PORTAL_CARDS = [
+  {
+    id: "supplier",
+    badge: "Externt flode",
+    title: "Leverantor",
+    subtitle: "Erik Lindqvist · Oatly AB",
+    description: "Ladda upp artikelunderlag, granska AI-utkast och atgarda valideringsproblem.",
+    steps: [
+      "Ladda upp dokument",
+      "Granska AI-extraktion",
+      "Atgarda valideringsproblem",
+      "Skicka for intern granskning",
+    ],
+    action: "Oppna portal",
+    accent: "var(--ms-green)",
+    badgeColor: "var(--ms-green)",
+    badgeBackground: "rgba(27,58,45,0.08)",
+    badgeBorder: "rgba(27,58,45,0.16)",
+    icon: ClipboardList,
+  },
+  {
+    id: "internal",
+    badge: "Internt flode",
+    title: "Intern granskare",
+    subtitle: "Anna Karlsson · Kategoriansvarig M&S",
+    description: "Oppna gamla 3B for att granska artikelko, AI-kvalitet och fatta beslut internt.",
+    steps: [
+      "Oppna artikelko",
+      "Kontrollera AI-kvalitetspoang",
+      "Godkann eller avvisa artikel",
+    ],
+    action: "Oppna 3B",
+    accent: "var(--ms-amber)",
+    badgeColor: "var(--ms-amber)",
+    badgeBackground: "rgba(200,151,62,0.08)",
+    badgeBorder: "rgba(200,151,62,0.18)",
+    icon: ShieldCheck,
+  },
+] as const;
+
+const INTERNAL_PORTAL_SUBMISSION: SupplierFormSubmission = {
+  values: {
+    productName: "Oatly Havredryck Ekologisk 1 L",
+    ean: "7394376615800",
+    articleNumber: "ART-45821",
+    brand: "Oatly",
+    category: "Vaxtbaserade drycker",
+    shortDescription: "Ekologisk havredryck for kaffe, matlagning och servering i storhushall.",
+    netWeight: "1000 g",
+    volume: "1 l",
+    packagingType: "Tetra Pak",
+    height: "238",
+    width: "70",
+    depth: "70",
+    casesPerPackage: "12",
+    caseWeight: "12.8",
+    energyKj: "251",
+    energyKcal: "60",
+    fat: "3.0",
+    saturatedFat: "0.3",
+    carbohydrates: "6.7",
+    sugars: "4.0",
+    fiber: "0.8",
+    protein: "1.0",
+    salt: "0.1",
+    calcium: "120",
+    shelfLife: "270",
+    storageTemperature: "Rumstemperatur",
+    openedShelfLife: "5",
+    countryOfOrigin: "Sverige",
+    supplierGln: "7300000001234",
+  },
+  allergens: ["Gluten"],
+};
+
 export function App() {
+  const [portalMode, setPortalMode] = useState<PortalMode>("landing");
   const [screen, setScreen] = useState<Screen>("supplier-upload");
   const [uploadMode, setUploadMode] = useState<UploadMode>("upload");
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
@@ -140,12 +219,12 @@ export function App() {
   const [step3Available, setStep3Available] = useState(false);
 
   const screenEnabled: Record<Screen, boolean> = {
-    "supplier-upload": true,
-    "supplier-form": step2Available,
-    "ai-processing": uploadMode === "upload" && uploadedFiles.length > 0,
-    "ai-draft": step2Available,
-    validation: step3Available,
-    "internal-review": step3Available,
+    "supplier-upload": portalMode === "supplier",
+    "supplier-form": portalMode === "supplier" && step2Available,
+    "ai-processing": portalMode === "supplier" && uploadMode === "upload" && uploadedFiles.length > 0,
+    "ai-draft": portalMode === "supplier" && step2Available,
+    validation: portalMode === "supplier" && step3Available,
+    "internal-review": portalMode === "supplier" ? step3Available : portalMode === "internal",
   };
 
   const step3Issues = formSubmission ? buildStep3Issues(formSubmission, articleDraft) : [];
@@ -158,6 +237,37 @@ export function App() {
     }
 
     setScreen(nextScreen);
+  };
+
+  const resetWorkflow = () => {
+    setScreen("supplier-upload");
+    setUploadMode("upload");
+    setUploadedFiles([]);
+    setUploadError(null);
+    setIsExtracting(false);
+    setArticleDraft(null);
+    setFormSubmission(null);
+    setFormFocusTarget(null);
+    setStep2Available(false);
+    setStep3Available(false);
+  };
+
+  const openSupplierPortal = () => {
+    resetWorkflow();
+    setPortalMode("supplier");
+  };
+
+  const openInternalPortal = () => {
+    resetWorkflow();
+    setFormSubmission(INTERNAL_PORTAL_SUBMISSION);
+    setStep3Available(true);
+    setScreen("internal-review");
+    setPortalMode("internal");
+  };
+
+  const returnToLanding = () => {
+    resetWorkflow();
+    setPortalMode("landing");
   };
 
   const openDraftAtField = (field: string) => {
@@ -186,7 +296,7 @@ export function App() {
     setScreen("ai-processing");
   };
 
-  const handleProcessUpload = async () => {
+  const handleProcessUpload = useCallback(async () => {
     setIsExtracting(true);
     setUploadError(null);
 
@@ -217,7 +327,11 @@ export function App() {
     } finally {
       setIsExtracting(false);
     }
-  };
+  }, [uploadMode, uploadedFiles]);
+
+  const handleProcessingComplete = useCallback(() => {
+    setScreen("ai-draft");
+  }, []);
 
   const handleValidationStart = () => {
     setStep3Available(true);
@@ -228,6 +342,14 @@ export function App() {
     setFormSubmission(submission);
     setStep3Available(true);
   };
+
+  if (portalMode === "landing") {
+    return <PortalLandingPage onOpenSupplier={openSupplierPortal} onOpenInternal={openInternalPortal} />;
+  }
+
+  const userInitials = portalMode === "internal" ? "AK" : "EL";
+  const userLabel = portalMode === "internal" ? "Anna Karlsson · Kategoriansvarig M&S" : "Erik Lindqvist · Oatly AB";
+  const portalLabel = portalMode === "internal" ? "Artikelportal - Intern" : "Artikelportal - Leverantor";
 
   return (
     <div className="flex h-screen flex-col overflow-hidden" style={{ background: "var(--background)" }}>
@@ -259,7 +381,7 @@ export function App() {
           </div>
           <div className="h-5 w-px opacity-30" style={{ background: "#fff" }} />
           <span style={{ fontSize: "12px", color: "rgba(255,255,255,0.7)", fontWeight: 500 }}>
-            Artikelportal - Leverantor
+            {portalLabel}
           </span>
         </div>
 
@@ -288,31 +410,46 @@ export function App() {
           })}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={returnToLanding}
+            className="rounded-md px-3 py-1.5 transition-all hover:bg-white/10"
+            style={{
+              border: "1px solid rgba(255,255,255,0.14)",
+              color: "rgba(255,255,255,0.86)",
+              fontSize: "12px",
+              fontWeight: 600,
+            }}
+          >
+            Till startsidan
+          </button>
           <div
             className="flex h-7 w-7 items-center justify-center rounded-full"
             style={{ background: "rgba(255,255,255,0.15)" }}
           >
-            <span style={{ fontSize: "11px", fontWeight: 700, color: "#fff" }}>EL</span>
+            <span style={{ fontSize: "11px", fontWeight: 700, color: "#fff" }}>{userInitials}</span>
           </div>
-          <span style={{ fontSize: "13px", color: "rgba(255,255,255,0.8)" }}>
-            Erik Lindqvist · Oatly AB
-          </span>
+          <span style={{ fontSize: "13px", color: "rgba(255,255,255,0.8)" }}>{userLabel}</span>
         </div>
       </header>
 
       <div className="flex flex-shrink-0 items-center gap-6 border-b border-border px-8 py-2" style={{ background: "var(--card)" }}>
         {PAIRS.map((pair) => {
           const active = pair.screens.some((pairScreen) => pairScreen.id === screen);
-          const enabled = pair.screens.some((pairScreen) => screenEnabled[pairScreen.id]);
+          const targetScreen = pair.screens.find((pairScreen) => screenEnabled[pairScreen.id])?.id;
 
           return (
             <button
               key={pair.id}
-              onClick={() => nav(pair.screens[0].id)}
-              disabled={!enabled}
+              onClick={() => {
+                if (targetScreen) {
+                  nav(targetScreen);
+                }
+              }}
+              disabled={!targetScreen}
               className="flex items-center gap-2 transition-all"
-              style={{ opacity: enabled ? 1 : 0.5, cursor: enabled ? "pointer" : "not-allowed" }}
+              style={{ opacity: targetScreen ? 1 : 0.5, cursor: targetScreen ? "pointer" : "not-allowed" }}
             >
               <div className="h-1.5 w-1.5 rounded-full" style={{ background: active ? "var(--ms-amber)" : "var(--border)" }} />
               <span
@@ -370,7 +507,7 @@ export function App() {
             articleDraft={articleDraft}
             onProcess={handleProcessUpload}
             processingError={uploadError}
-            onComplete={() => setScreen("supplier-form")}
+            onComplete={handleProcessingComplete}
             onBack={() => nav("supplier-upload")}
           />
         )}
@@ -392,10 +529,141 @@ export function App() {
             submission={formSubmission}
             blockingCount={blockingIssues.length}
             warningCount={warningIssues.length}
-            onBack={() => nav("validation")}
+            onBack={portalMode === "internal" ? returnToLanding : () => nav("validation")}
+            backLabel={portalMode === "internal" ? "Till startsidan" : undefined}
           />
         )}
       </main>
+    </div>
+  );
+}
+
+function PortalLandingPage({ onOpenSupplier, onOpenInternal }: { onOpenSupplier: () => void; onOpenInternal: () => void }) {
+  return (
+    <div
+      className="flex min-h-screen items-center justify-center px-6 py-10"
+      style={{
+        background:
+          "radial-gradient(circle at top, rgba(200,151,62,0.08), transparent 28%), linear-gradient(180deg, #f7f5f0 0%, var(--background) 58%, #efede7 100%)",
+      }}
+    >
+      <div className="w-full max-w-[1060px]">
+        <div className="mb-14 flex flex-col items-center text-center">
+          <div className="mb-5 flex items-center gap-4">
+            <div
+              className="flex h-14 w-14 items-center justify-center rounded-2xl"
+              style={{ background: "var(--ms-green)", boxShadow: "0 18px 30px rgba(27,58,45,0.16)" }}
+            >
+              <span style={{ fontSize: "28px", fontWeight: 800, color: "#fff", letterSpacing: "-0.05em" }}>M</span>
+            </div>
+            <div className="text-left">
+              <p style={{ fontSize: "18px", fontWeight: 700, color: "var(--ms-green)", letterSpacing: "-0.03em" }}>
+                Martin &amp; Servera
+              </p>
+              <p style={{ fontSize: "14px", color: "var(--muted-foreground)" }}>Artikelportal · POC</p>
+            </div>
+          </div>
+
+          <div className="max-w-[620px]">
+            <h1 style={{ color: "var(--ms-green)", fontSize: "42px", lineHeight: 1.05, letterSpacing: "-0.05em", margin: 0 }}>
+              Valj ingang till artikelportalen
+            </h1>
+            <p className="mt-4" style={{ fontSize: "16px", lineHeight: 1.7, color: "var(--muted-foreground)" }}>
+              Tva tydliga floden for samma app: ett for leverantorer som skickar in artikeldata och ett internt lage dar gamla 3B lever vidare.
+            </p>
+          </div>
+        </div>
+
+        <div className="grid gap-6 md:grid-cols-2">
+          {PORTAL_CARDS.map((card) => {
+            const Icon = card.icon;
+            const action = card.id === "supplier" ? onOpenSupplier : onOpenInternal;
+
+            return (
+              <section
+                key={card.id}
+                className="relative overflow-hidden rounded-[30px] bg-card p-8"
+                style={{
+                  border: "1px solid rgba(26,26,24,0.08)",
+                  boxShadow: "0 24px 70px rgba(27,58,45,0.08)",
+                }}
+              >
+                <div
+                  className="pointer-events-none absolute inset-x-8 top-0 h-px"
+                  style={{ background: `linear-gradient(90deg, transparent, ${card.accent}, transparent)`, opacity: 0.28 }}
+                />
+
+                <div className="mb-8 flex items-start justify-between gap-4">
+                  <div
+                    className="flex h-16 w-16 items-center justify-center rounded-2xl"
+                    style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.9), rgba(27,58,45,0.06))" }}
+                  >
+                    <Icon size={28} style={{ color: card.accent }} />
+                  </div>
+                  <span
+                    className="rounded-full px-4 py-2"
+                    style={{
+                      background: card.badgeBackground,
+                      color: card.badgeColor,
+                      border: `1px solid ${card.badgeBorder}`,
+                      fontSize: "12px",
+                      fontWeight: 600,
+                    }}
+                  >
+                    {card.badge}
+                  </span>
+                </div>
+
+                <div className="mb-8">
+                  <h2 style={{ fontSize: "24px", lineHeight: 1.1, letterSpacing: "-0.04em", color: "var(--foreground)", margin: 0 }}>
+                    {card.title}
+                  </h2>
+                  <p className="mt-2" style={{ fontSize: "14px", color: "var(--muted-foreground)" }}>
+                    {card.subtitle}
+                  </p>
+                  <p className="mt-6" style={{ fontSize: "16px", lineHeight: 1.65, color: "var(--muted-foreground)" }}>
+                    {card.description}
+                  </p>
+                </div>
+
+                <div className="mb-8 flex flex-col gap-3">
+                  {card.steps.map((step, index) => (
+                    <div key={step} className="flex items-start gap-3">
+                      <div
+                        className="mt-0.5 flex h-6 w-6 items-center justify-center rounded-full"
+                        style={{ background: "var(--muted)", color: "var(--muted-foreground)", fontSize: "12px", fontWeight: 600 }}
+                      >
+                        {index + 1}
+                      </div>
+                      <span style={{ fontSize: "14px", lineHeight: 1.5, color: "var(--foreground)" }}>{step}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={action}
+                  className="flex w-full items-center justify-center gap-2 rounded-2xl px-5 py-4 transition-all hover:opacity-95"
+                  style={{
+                    background: "var(--ms-green)",
+                    color: "#fff",
+                    fontSize: "15px",
+                    fontWeight: 700,
+                    boxShadow: "0 14px 26px rgba(27,58,45,0.18)",
+                  }}
+                >
+                  {card.action}
+                  <ArrowRight size={16} />
+                </button>
+              </section>
+            );
+          })}
+        </div>
+
+        <p className="mt-10 text-center" style={{ fontSize: "14px", color: "var(--muted-foreground)" }}>
+          Proof of Concept - Martin &amp; Servera Artikelportal 2024
+        </p>
+      </div>
     </div>
   );
 }

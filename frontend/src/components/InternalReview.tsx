@@ -7,6 +7,7 @@ interface InternalReviewProps {
   blockingCount: number;
   warningCount: number;
   onBack: () => void;
+  backLabel?: string;
 }
 
 type ArticleStatus = "pending_review" | "approved" | "rejected" | "needs_info";
@@ -43,7 +44,7 @@ const STATUS_CONFIG: Record<
   needs_info: { label: "Behover info", color: "var(--ms-status-info)", bg: "rgba(46,107,170,0.08)", border: "rgba(46,107,170,0.2)", icon: MessageSquare },
 };
 
-export function InternalReview({ submission, blockingCount, warningCount, onBack }: InternalReviewProps) {
+export function InternalReview({ submission, blockingCount, warningCount, onBack, backLabel = "Tillbaka till validering" }: InternalReviewProps) {
   const [selected, setSelected] = useState<string>("A001");
   const [filter, setFilter] = useState<ArticleStatus | "all">("all");
   const [search, setSearch] = useState("");
@@ -229,7 +230,7 @@ export function InternalReview({ submission, blockingCount, warningCount, onBack
 
           <div className="flex items-center gap-3 border-t border-border px-8 py-4" style={{ background: "var(--card)" }}>
             <button onClick={onBack} className="rounded-lg px-4 py-2 transition-all hover:bg-muted" style={{ fontSize: "13px", color: "var(--muted-foreground)", border: "1px solid var(--border)" }}>
-              Tillbaka till validering
+              {backLabel}
             </button>
             {article.status === "pending_review" && (
               <>
