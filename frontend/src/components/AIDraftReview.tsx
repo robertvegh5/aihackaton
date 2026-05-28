@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Edit3, ArrowRight, ArrowLeft, Sparkles } from "lucide-react";
 
 interface AIDraftReviewProps {
+  focusTarget?: string | null;
+  onFocusTargetHandled?: () => void;
   onNext: () => void;
   onBack: () => void;
 }
@@ -61,8 +63,28 @@ const DRAFT_FIELDS: DraftSection[] = [
   },
 ];
 
-export function AIDraftReview({ onNext, onBack }: AIDraftReviewProps) {
+export function AIDraftReview({ focusTarget = null, onFocusTargetHandled, onNext, onBack }: AIDraftReviewProps) {
   const [editingField, setEditingField] = useState<string | null>(null);
+  const fieldRefs = useRef<Record<string, HTMLInputElement | null>>({});
+
+  useEffect(() => {
+    if (!focusTarget) {
+      return;
+    }
+
+    const element = fieldRefs.current[focusTarget];
+    if (!element) {
+      return;
+    }
+
+    setEditingField(focusTarget);
+    window.setTimeout(() => {
+      element.scrollIntoView({ behavior: "smooth", block: "center" });
+      element.focus();
+      element.select();
+      onFocusTargetHandled?.();
+    }, 0);
+  }, [focusTarget, onFocusTargetHandled]);
 
   const allFields = DRAFT_FIELDS.flatMap((section) => section.fields);
   const missingCount = allFields.filter((field) => field.missing).length;
@@ -136,6 +158,9 @@ export function AIDraftReview({ onNext, onBack }: AIDraftReviewProps) {
                     <div className="flex-1">
                       {editingField === field.label ? (
                         <input
+                          ref={(element) => {
+                            fieldRefs.current[field.label] = element;
+                          }}
                           defaultValue={field.missing ? "" : field.value}
                           autoFocus
                           className="w-full rounded px-2 py-1 outline-none focus:ring-2"

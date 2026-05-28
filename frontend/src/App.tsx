@@ -116,8 +116,13 @@ export function App() {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isExtracting, setIsExtracting] = useState(false);
   const [articleDraft, setArticleDraft] = useState<ArticleDraft | null>(null);
+  const [draftFocusTarget, setDraftFocusTarget] = useState<string | null>(null);
 
   const nav = (nextScreen: Screen) => setScreen(nextScreen);
+  const openDraftAtField = (field: string) => {
+    setDraftFocusTarget(field);
+    nav("ai-draft");
+  };
 
   const handleGoToSupplierForm = async () => {
     if (uploadMode === "upload" && uploadedFiles.length === 0) {
@@ -305,10 +310,15 @@ export function App() {
           <AIProcessing onNext={() => nav("ai-draft")} onBack={() => nav("supplier-form")} />
         )}
         {screen === "ai-draft" && (
-          <AIDraftReview onNext={() => nav("validation")} onBack={() => nav("ai-processing")} />
+          <AIDraftReview
+            focusTarget={draftFocusTarget}
+            onFocusTargetHandled={() => setDraftFocusTarget(null)}
+            onNext={() => nav("validation")}
+            onBack={() => nav("ai-processing")}
+          />
         )}
         {screen === "validation" && (
-          <ValidationIssues onNext={() => nav("internal-review")} onBack={() => nav("ai-draft")} />
+          <ValidationIssues onSelectIssue={openDraftAtField} onNext={() => nav("internal-review")} onBack={() => nav("ai-draft")} />
         )}
         {screen === "internal-review" && <InternalReview onBack={() => nav("validation")} />}
       </main>
