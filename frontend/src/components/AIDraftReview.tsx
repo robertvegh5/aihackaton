@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { Edit3, ArrowRight, ArrowLeft, Sparkles } from "lucide-react";
+import type { ArticleDraft } from "../App";
 
 interface AIDraftReviewProps {
+  articleDraft: ArticleDraft | null;
   focusTarget?: string | null;
   onFocusTargetHandled?: () => void;
   onNext: () => void;
@@ -22,48 +24,7 @@ interface DraftSection {
   fields: DraftField[];
 }
 
-const DRAFT_FIELDS: DraftSection[] = [
-  {
-    section: "Grunduppgifter",
-    fields: [
-      { label: "Artikelnamn", value: "Oatly Havredryck Ekologisk 1 L", confidence: 98, source: "Produktblad s.1" },
-      { label: "EAN-13", value: "7394376615808", confidence: 99, source: "Streckkod s.1" },
-      { label: "Varumarke", value: "Oatly", confidence: 99, source: "Produktblad s.1" },
-      { label: "Kategori", value: "Vaxtbaserade drycker", confidence: 82, source: "Produktblad s.2", warning: "Lag konfidens - verifiera" },
-      { label: "Artikelnummer", value: "OAT-HAVR-EKO-001", confidence: 94, source: "Artikeldata.xlsx A3" },
-    ],
-  },
-  {
-    section: "Naringsvarden (per 100 ml)",
-    fields: [
-      { label: "Energi (kJ)", value: "192", confidence: 96, source: "Naringstabell s.4" },
-      { label: "Fett (g)", value: "1.5", confidence: 96, source: "Naringstabell s.4" },
-      { label: "Kolhydrater (g)", value: "6.7", confidence: 95, source: "Naringstabell s.4" },
-      { label: "varav sockerarter (g)", value: "4.0", confidence: 93, source: "Naringstabell s.4" },
-      { label: "Protein (g)", value: "1.0", confidence: 96, source: "Naringstabell s.4" },
-      { label: "Kalcium (mg)", value: "-", confidence: 0, source: "Ej hittad", missing: true },
-    ],
-  },
-  {
-    section: "Allergener",
-    fields: [
-      { label: "Innehaller mjolk", value: "Nej", confidence: 91, source: "Ingredienslista s.3" },
-      { label: "Innehaller soja", value: "Nej - kan innehalla spar", confidence: 88, source: "Allergentext s.3", warning: "Dubbelkolla sparmarkning" },
-      { label: "Innehaller gluten", value: "Nej", confidence: 95, source: "Ingredienslista s.3" },
-    ],
-  },
-  {
-    section: "Logistik",
-    fields: [
-      { label: "Hallbarhet (dagar)", value: "365", confidence: 90, source: "Produktblad s.6" },
-      { label: "Ursprungsland", value: "Sverige", confidence: 97, source: "Produktblad s.1" },
-      { label: "Kolli per forpackning", value: "-", confidence: 0, source: "Ej hittad", missing: true },
-      { label: "GLN (leverantor)", value: "-", confidence: 0, source: "Ej hittad", missing: true },
-    ],
-  },
-];
-
-export function AIDraftReview({ focusTarget = null, onFocusTargetHandled, onNext, onBack }: AIDraftReviewProps) {
+export function AIDraftReview({ articleDraft, focusTarget = null, onFocusTargetHandled, onNext, onBack }: AIDraftReviewProps) {
   const [editingField, setEditingField] = useState<string | null>(null);
   const fieldRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
@@ -86,7 +47,39 @@ export function AIDraftReview({ focusTarget = null, onFocusTargetHandled, onNext
     }, 0);
   }, [focusTarget, onFocusTargetHandled]);
 
-  const allFields = DRAFT_FIELDS.flatMap((section) => section.fields);
+  if (!articleDraft) {
+    return (
+      <div className="flex h-full flex-col">
+        <div className="border-b border-border px-8 pt-8 pb-5">
+          <div className="mb-1 flex items-center gap-2" style={{ color: "var(--ms-amber)" }}>
+            <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "11px", fontWeight: 500, letterSpacing: "0.08em" }}>
+              PAR 2 - AI-UTKAST
+            </span>
+          </div>
+          <h1 style={{ color: "var(--ms-green)" }}>Granska AI-utkast</h1>
+          <p className="mt-1" style={{ color: "var(--muted-foreground)", fontSize: "15px" }}>
+            Kor extraktionen i steg 1 forst for att fa ett verkligt utkast att granska.
+          </p>
+        </div>
+        <div className="flex flex-1 items-center justify-center px-8 py-8">
+          <div className="w-full max-w-xl rounded-2xl p-6 text-center" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
+            <p style={{ fontSize: "16px", fontWeight: 600, color: "var(--foreground)" }}>Ingen article-draft tillganglig</p>
+          </div>
+        </div>
+        <div className="flex items-center justify-between border-t border-border px-8 py-5" style={{ background: "var(--card)" }}>
+          <button onClick={onBack} className="flex items-center gap-2 rounded-lg px-4 py-2 transition-all hover:bg-muted" style={{ fontSize: "14px", color: "var(--muted-foreground)" }}>
+            <ArrowLeft size={16} /> Tillbaka
+          </button>
+          <button disabled className="flex items-center gap-2 rounded-lg px-5 py-2.5 transition-all" style={{ background: "var(--muted)", color: "var(--muted-foreground)", fontWeight: 600, fontSize: "14px", cursor: "not-allowed", opacity: 0.7 }}>
+            Kor validering <ArrowRight size={16} />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const draftFields = mapArticleDraftToSections(articleDraft);
+  const allFields = draftFields.flatMap((section) => section.fields);
   const missingCount = allFields.filter((field) => field.missing).length;
   const warningCount = allFields.filter((field) => field.warning).length;
 
@@ -122,7 +115,7 @@ export function AIDraftReview({ focusTarget = null, onFocusTargetHandled, onNext
 
       <div className="flex-1 overflow-y-auto" style={{ display: "grid", gridTemplateColumns: "1fr 280px" }}>
         <div className="flex flex-col gap-5 overflow-y-auto border-r border-border px-8 py-6">
-          {DRAFT_FIELDS.map((section) => (
+          {draftFields.map((section) => (
             <div key={section.section}>
               <p className="mb-2" style={{ fontSize: "11px", fontWeight: 700, color: "var(--muted-foreground)", letterSpacing: "0.07em", textTransform: "uppercase" }}>
                 {section.section}
@@ -225,10 +218,10 @@ export function AIDraftReview({ focusTarget = null, onFocusTargetHandled, onNext
             </div>
             <div className="flex flex-col gap-2">
               {[
-                { label: "Hog (>=90%)", count: 11, color: "var(--ms-status-ok)" },
-                { label: "Medium (75-89%)", count: 4, color: "var(--ms-amber)" },
-                { label: "Lag (<75%)", count: 2, color: "var(--ms-status-error)" },
-                { label: "Saknas", count: 3, color: "var(--border)" },
+                { label: "Hog (>=90%)", count: allFields.filter((field) => field.confidence >= 90).length, color: "var(--ms-status-ok)" },
+                { label: "Medium (75-89%)", count: allFields.filter((field) => field.confidence >= 75 && field.confidence < 90).length, color: "var(--ms-amber)" },
+                { label: "Lag (<75%)", count: allFields.filter((field) => field.confidence > 0 && field.confidence < 75).length, color: "var(--ms-status-error)" },
+                { label: "Saknas", count: missingCount, color: "var(--border)" },
               ].map((row) => (
                 <div key={row.label} className="flex items-center gap-2">
                   <div className="h-2 w-2 flex-shrink-0 rounded-full" style={{ background: row.color }} />
@@ -241,15 +234,11 @@ export function AIDraftReview({ focusTarget = null, onFocusTargetHandled, onNext
 
           <div className="rounded-xl p-4" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
             <p style={{ fontSize: "12px", fontWeight: 700, color: "var(--foreground)", marginBottom: "10px" }}>Kalldokument</p>
-            {[
-              { name: "Produktblad s.1-6", count: 24 },
-              { name: "Artikeldata.xlsx", count: 8 },
-              { name: "Infererad", count: 2 },
-            ].map((source) => (
+            {articleDraft.sourceFiles.map((source) => (
               <div key={source.name} className="flex items-center justify-between py-1.5" style={{ borderBottom: "1px solid var(--border)" }}>
                 <span style={{ fontSize: "12px", color: "var(--muted-foreground)" }}>{source.name}</span>
                 <span style={{ fontSize: "11px", fontWeight: 600, fontFamily: "'JetBrains Mono', monospace", color: "var(--foreground)" }}>
-                  {source.count} falt
+                  {source.type}
                 </span>
               </div>
             ))}
@@ -258,7 +247,7 @@ export function AIDraftReview({ focusTarget = null, onFocusTargetHandled, onNext
           <div className="rounded-xl p-4" style={{ background: "rgba(27,58,45,0.06)", border: "1px solid rgba(27,58,45,0.12)" }}>
             <p style={{ fontSize: "12px", fontWeight: 700, color: "var(--ms-green)", marginBottom: "6px" }}>Nasta steg</p>
             <p style={{ fontSize: "12px", color: "var(--ms-green-mid)", lineHeight: "1.6" }}>
-              Fyll i de 3 saknade falten. Granska varningarna. Skicka sedan for fullstandig regelvalidering.
+              Fyll i de saknade falten. Granska varningarna. Skicka sedan for fullstandig regelvalidering.
             </p>
           </div>
         </div>
@@ -282,6 +271,57 @@ export function AIDraftReview({ focusTarget = null, onFocusTargetHandled, onNext
       </div>
     </div>
   );
+}
+
+function mapArticleDraftToSections(articleDraft: ArticleDraft): DraftSection[] {
+  const metadata = articleDraft.extractedMetadata || {};
+  const allergenSet = new Set(articleDraft.allergens.declared);
+  const sourceName = articleDraft.sourceFiles[0]?.name || "Uppladdat underlag";
+  const productConfidence = Math.round(articleDraft.confidence.product * 100);
+  const ingredientConfidence = Math.round(articleDraft.confidence.ingredients * 100);
+  const allergenConfidence = Math.round(articleDraft.confidence.allergens * 100);
+  const nutritionConfidence = Math.round(articleDraft.confidence.nutrition * 100);
+
+  return [
+    {
+      section: "Grunduppgifter",
+      fields: [
+        { label: "Artikelnamn", value: articleDraft.product.productName || "-", confidence: productConfidence, source: sourceName, missing: !articleDraft.product.productName },
+        { label: "EAN-13", value: metadata.ean || "-", confidence: productConfidence, source: sourceName, missing: !metadata.ean },
+        { label: "Varumarke", value: articleDraft.product.brand || "-", confidence: productConfidence, source: sourceName, missing: !articleDraft.product.brand },
+        { label: "Kategori", value: metadata.category || "-", confidence: productConfidence, source: sourceName, missing: !metadata.category },
+        { label: "Artikelnummer", value: metadata.articleNumber || "-", confidence: productConfidence, source: sourceName, missing: !metadata.articleNumber },
+      ],
+    },
+    {
+      section: "Naringsvarden (per 100 ml)",
+      fields: [
+        { label: "Energi (kJ)", value: articleDraft.nutrition.energyKj == null ? "-" : String(articleDraft.nutrition.energyKj), confidence: nutritionConfidence, source: sourceName, missing: articleDraft.nutrition.energyKj == null },
+        { label: "Fett (g)", value: articleDraft.nutrition.fat == null ? "-" : String(articleDraft.nutrition.fat), confidence: nutritionConfidence, source: sourceName, missing: articleDraft.nutrition.fat == null },
+        { label: "Kolhydrater (g)", value: articleDraft.nutrition.carbohydrates == null ? "-" : String(articleDraft.nutrition.carbohydrates), confidence: nutritionConfidence, source: sourceName, missing: articleDraft.nutrition.carbohydrates == null },
+        { label: "Protein (g)", value: articleDraft.nutrition.protein == null ? "-" : String(articleDraft.nutrition.protein), confidence: nutritionConfidence, source: sourceName, missing: articleDraft.nutrition.protein == null },
+        { label: "Salt (g)", value: articleDraft.nutrition.salt == null ? "-" : String(articleDraft.nutrition.salt), confidence: nutritionConfidence, source: sourceName, missing: articleDraft.nutrition.salt == null },
+      ],
+    },
+    {
+      section: "Allergener",
+      fields: [
+        { label: "Innehaller mjolk", value: allergenSet.has("milk") ? "Ja" : "Nej", confidence: allergenConfidence, source: sourceName },
+        { label: "Innehaller soja", value: allergenSet.has("soy") ? "Ja" : "Nej", confidence: allergenConfidence, source: sourceName },
+        { label: "Innehaller gluten", value: allergenSet.has("gluten") ? "Ja" : "Nej", confidence: allergenConfidence, source: sourceName },
+        { label: "Ingredienser", value: articleDraft.ingredients.text || "-", confidence: ingredientConfidence, source: sourceName, missing: !articleDraft.ingredients.text },
+      ],
+    },
+    {
+      section: "Logistik",
+      fields: [
+        { label: "Ursprungsland", value: metadata.countryOfOrigin || "-", confidence: productConfidence, source: sourceName, missing: !metadata.countryOfOrigin },
+        { label: "Forpackning", value: metadata.packaging || articleDraft.product.packageSize || "-", confidence: productConfidence, source: sourceName, missing: !metadata.packaging && !articleDraft.product.packageSize },
+        { label: "Nettovikt", value: metadata.netWeight || articleDraft.product.packageSize || "-", confidence: productConfidence, source: sourceName, missing: !metadata.netWeight && !articleDraft.product.packageSize },
+        { label: "Forvaring", value: metadata.storage || "-", confidence: productConfidence, source: sourceName, missing: !metadata.storage },
+      ],
+    },
+  ];
 }
 
 function Pill({ label, color, bg, border }: { label: string; color: string; bg: string; border: string }) {

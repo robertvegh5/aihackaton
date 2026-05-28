@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { motion } from "motion/react";
 import { FileText, FileSpreadsheet, Cpu, CheckCircle2, ArrowLeft } from "lucide-react";
-import type { UploadedFile } from "../App";
+import type { ArticleDraft, UploadedFile } from "../App";
 
 interface AIProcessingProps {
   files: UploadedFile[];
+  articleDraft: ArticleDraft | null;
   onProcess: () => Promise<boolean>;
   processingError: string | null;
   onComplete: () => void;
@@ -22,7 +23,7 @@ const STEPS = [
   { id: 8, label: "Genererar artikelutkast", detail: "Satter samman komplett artikelprofil", duration: 800 },
 ];
 
-export function AIProcessing({ files, onProcess, processingError, onComplete, onBack }: AIProcessingProps) {
+export function AIProcessing({ files, articleDraft, onProcess, processingError, onComplete, onBack }: AIProcessingProps) {
   const [currentStep, setCurrentStep] = useState(0);
   const [done, setDone] = useState(false);
 
@@ -74,7 +75,7 @@ export function AIProcessing({ files, onProcess, processingError, onComplete, on
         </div>
         <h1 style={{ color: "var(--ms-green)" }}>AI analyserar uppladdade filer</h1>
         <p className="mt-1" style={{ color: "var(--muted-foreground)", fontSize: "15px" }}>
-          Du kommer vidare till steg 2 automatiskt nar analysen ar klar.
+          Du kommer vidare till steg 2B automatiskt nar analysen ar klar.
         </p>
       </div>
 
@@ -165,7 +166,7 @@ export function AIProcessing({ files, onProcess, processingError, onComplete, on
           )}
         </div>
 
-        {done && (
+        {done && articleDraft && (
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
@@ -173,10 +174,26 @@ export function AIProcessing({ files, onProcess, processingError, onComplete, on
             className="grid w-full max-w-xl grid-cols-4 gap-3"
           >
             {[
-              { label: "Falt extraherade", value: "34", sub: "av 40 totalt" },
-              { label: "AI-konfidenspoang", value: "87%", sub: "genomsnitt" },
-              { label: "Saknade falt", value: "6", sub: "kraver granskning" },
-              { label: "Allergenmarkeringar", value: "2", sub: "identifierade" },
+              {
+                label: "Falt extraherade",
+                value: String(Math.max(0, 11 - articleDraft.missingFields.length)),
+                sub: "i article-draft",
+              },
+              {
+                label: "AI-konfidenspoang",
+                value: `${Math.round(((articleDraft.confidence.product + articleDraft.confidence.ingredients + articleDraft.confidence.allergens + articleDraft.confidence.nutrition) / 4) * 100)}%`,
+                sub: "genomsnitt",
+              },
+              {
+                label: "Saknade falt",
+                value: String(articleDraft.missingFields.length),
+                sub: "kraver granskning",
+              },
+              {
+                label: "Allergenmarkeringar",
+                value: String(articleDraft.allergens.declared.length),
+                sub: "identifierade",
+              },
             ].map((stat) => (
               <div key={stat.label} className="rounded-xl p-4 text-center" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
                 <p style={{ fontSize: "24px", fontWeight: 700, color: "var(--ms-green)", letterSpacing: "-0.02em" }}>{stat.value}</p>
@@ -198,7 +215,7 @@ export function AIProcessing({ files, onProcess, processingError, onComplete, on
           <ArrowLeft size={16} /> Tillbaka
         </button>
         <p style={{ fontSize: "13px", color: "var(--muted-foreground)" }}>
-          {done ? "Analysen ar klar. Du skickas vidare till steg 2." : "Vanta tills analysen ar klar for att fortsatta."}
+          {done ? "Analysen ar klar. Du skickas vidare till steg 2B." : "Vanta tills analysen ar klar for att fortsatta."}
         </p>
       </div>
     </div>

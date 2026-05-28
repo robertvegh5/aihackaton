@@ -1,13 +1,18 @@
 import express from "express";
 import multer from "multer";
 import { PDFParse } from "pdf-parse";
+import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { generateText, Output } from "ai";
+import { createAzure } from "@ai-sdk/azure";
+import { z } from "zod";
 import { draftStub, validationStub, scenarioSummaries } from "../../shared/src/stubs.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const openApiPath = path.resolve(__dirname, "../openapi.yaml");
+const aiModelsConfigPath = path.resolve(__dirname, "../../.agents/skills/ai-sdk/ai-models-config.md");
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
@@ -16,6 +21,60 @@ const upload = multer({
   },
 });
 const allowedExtensions = new Set([".pdf", ".xlsx", ".csv", ".docx", ".png", ".jpg", ".jpeg", ".webp"]);
+
+const aiExtractedDraftSchema = z.object({
+  product: z.object({
+    productName: z.string(),
+    brand: z.string(),
+    packageSize: z.string(),
+  }),
+  ingredients: z.object({
+    text: z.string(),
+  }),
+  allergens: z.object({
+    declared: z.array(z.string()),
+  }),
+  nutrition: z.object({
+    energyKj: z.number().nullable(),
+    fat: z.number().nullable(),
+    carbohydrates: z.number().nullable(),
+    protein: z.number().nullable(),
+    salt: z.number().nullable(),
+  }),
+  generatedCopy: z.object({
+    shortDescription: z.string(),
+  }),
+  confidence: z.object({
+    product: z.number().min(0).max(1),
+    ingredients: z.number().min(0).max(1),
+    allergens: z.number().min(0).max(1),
+    nutrition: z.number().min(0).max(1),
+  }),
+  missingFields: z.array(z.string()),
+  extractedMetadata: z
+    .object({
+      articleNumber: z.string(),
+      category: z.string(),
+      ean: z.string(),
+      countryOfOrigin: z.string(),
+      packaging: z.string(),
+      netWeight: z.string(),
+      storage: z.string(),
+    })
+    .nullable(),
+});
+
+const aiModelsConfigSchema = z.object({
+  azureOpenAI: z
+    .object({
+      deployment: z.string().min(1),
+      baseURL: z.string().min(1).optional(),
+      resourceName: z.string().min(1).optional(),
+      apiKey: z.string().min(1).optional(),
+      apiKeyEnvVar: z.string().min(1).default("AZURE_OPENAI_API_KEY"),
+    })
+    .optional(),
+});
 
 const app = express();
 app.use(express.json());
@@ -88,7 +147,7 @@ app.post("/api/extract", upload.array("files"), async (req, res) => {
           path: `uploads/${Date.now()}-${sanitizeFileName(file.originalname)}`,
         }));
 
-  const extractedDraft = await buildDraftFromFiles(files);
+  const { extractedDraft, extractionEngine, extractionWarning } = await buildDraftFromFiles(files);
 
   const articleDraft = {
     ...draftStub,
@@ -98,7 +157,7 @@ app.post("/api/extract", upload.array("files"), async (req, res) => {
     sourceFiles,
   };
 
-  res.json({ articleDraft });
+  res.json({ articleDraft, extractionEngine, extractionWarning });
 });
 
 app.post("/api/validate", (_req, res) => {
@@ -149,10 +208,15 @@ function mapFileType(fileName, mimeType) {
 }
 
 async function buildDraftFromFiles(files) {
+  const { extractedDraft: aiDraft, extractionWarning } = await buildDraftWithAzure(files);
+  if (aiDraft) {
+    return { extractedDraft: aiDraft, extractionEngine: "azure", extractionWarning: null };
+  }
+
   const pdfFile = files.find((file) => path.extname(file.originalname).toLowerCase() === ".pdf");
 
   if (!pdfFile) {
-    return {};
+    return { extractedDraft: {}, extractionEngine: "none", extractionWarning };
   }
 
   try {
@@ -210,6 +274,7 @@ async function buildDraftFromFiles(files) {
     const declaredAllergens = detectAllergens([ingredientsText, allergenText].filter(Boolean).join("\n"));
 
     return {
+      extractedDraft: {
       product: {
         productName: cleanProductName(productName),
         brand,
@@ -247,10 +312,154 @@ async function buildDraftFromFiles(files) {
         netWeight,
         storage,
       },
+      },
+      extractionEngine: "pdf-parse",
+      extractionWarning,
     };
+  } catch {
+    return { extractedDraft: {}, extractionEngine: "none", extractionWarning };
+  }
+}
+
+async function buildDraftWithAzure(files) {
+  const aiModelsConfig = loadAiModelsConfig();
+  const apiKeyEnvVar = aiModelsConfig.azureOpenAI?.apiKeyEnvVar ?? "AZURE_OPENAI_API_KEY";
+  const apiKey = process.env[apiKeyEnvVar] || aiModelsConfig.azureOpenAI?.apiKey || process.env.AZURE_API_KEY;
+  const deployment = process.env.AZURE_OPENAI_DEPLOYMENT || aiModelsConfig.azureOpenAI?.deployment;
+  const baseURL = process.env.AZURE_BASE_URL || aiModelsConfig.azureOpenAI?.baseURL;
+  const resourceName = process.env.AZURE_RESOURCE_NAME || aiModelsConfig.azureOpenAI?.resourceName;
+
+  if (!apiKey || !deployment || (!baseURL && !resourceName)) {
+    return { extractedDraft: null, extractionWarning: "Azure extraction is not configured." };
+  }
+
+  const azure = createAzure({
+    apiKey,
+    baseURL,
+    resourceName,
+  });
+
+  const textFiles = files.filter((file) => file.mimetype.startsWith("text/") || file.originalname.endsWith(".csv"));
+  const pdfFiles = files.filter((file) => path.extname(file.originalname).toLowerCase() === ".pdf");
+
+  const content = [
+    {
+      type: "text",
+      text: [
+        "Extract packaged food supplier documents into the agreed article draft structure.",
+        "Only use information present in the uploaded documents.",
+        "Do not hallucinate missing values.",
+        "Return null for missing nutrition values.",
+        "Use canonical allergen codes such as milk, soy, egg, gluten when supported by the source.",
+        "Populate extractedMetadata when values like article number, EAN, category, packaging, or storage are found.",
+        "missingFields must contain dotted field paths for missing required values.",
+      ].join("\n\n"),
+    },
+  ];
+
+  for (const file of textFiles) {
+    content.push({
+      type: "text",
+      text: `Document ${file.originalname} (${file.mimetype}):\n${file.buffer.toString("utf8")}`,
+    });
+  }
+
+  for (const file of pdfFiles) {
+    content.push({
+      type: "file",
+      data: file.buffer,
+      mediaType: "application/pdf",
+      filename: file.originalname,
+    });
+  }
+
+  if (content.length === 1) {
+    return { extractedDraft: null, extractionWarning: "No Azure-compatible document content was provided." };
+  }
+
+  try {
+    const { output } = await generateText({
+      model: azure(deployment),
+      output: Output.object({
+        schema: aiExtractedDraftSchema,
+      }),
+      messages: [
+        {
+          role: "user",
+          content,
+        },
+      ],
+    });
+
+    return { extractedDraft: output, extractionWarning: null };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown Azure extraction error.";
+    console.error(`[extract][azure] ${message}`);
+    return {
+      extractedDraft: null,
+      extractionWarning: `Azure extraction failed: ${message}`,
+    };
+  }
+}
+
+function loadAiModelsConfig() {
+  if (!fs.existsSync(aiModelsConfigPath)) {
+    return {};
+  }
+
+  const markdown = fs.readFileSync(aiModelsConfigPath, "utf8");
+  try {
+    const envVars = extractEnvVariables(markdown);
+    const resourceName = envVars.AZURE_FOUNDRY_RESOURCE || extractValue(markdown, /Foundry resource:\s*`([^`]+)`/i);
+    const endpoint = envVars.AZURE_OPENAI_ENDPOINT || extractValue(markdown, /Azure OpenAI endpoint:\s*`([^`]+)`/i);
+    const deployment = envVars.MODEL_CHAT_PRIMARY || extractPrimaryDeployment(markdown);
+    const apiKey = envVars.AZURE_OPENAI_API_KEY || extractValue(markdown, /Primary API key:\s*`([^`]+)`/i);
+
+    return aiModelsConfigSchema.parse({
+      azureOpenAI: {
+        deployment,
+        baseURL: endpoint ? normalizeAzureBaseUrl(endpoint) : undefined,
+        resourceName,
+        apiKey,
+        apiKeyEnvVar: envVars.AZURE_OPENAI_API_KEY ? "AZURE_OPENAI_API_KEY" : "AZURE_API_KEY",
+      },
+    });
   } catch {
     return {};
   }
+}
+
+function extractEnvVariables(markdown) {
+  const match = markdown.match(/```env\s*([\s\S]*?)```/i);
+  if (!match) {
+    return {};
+  }
+
+  return Object.fromEntries(
+    match[1]
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line && !line.startsWith("#") && line.includes("="))
+      .map((line) => {
+        const separatorIndex = line.indexOf("=");
+        return [line.slice(0, separatorIndex).trim(), line.slice(separatorIndex + 1).trim()];
+      }),
+  );
+}
+
+function extractValue(markdown, pattern) {
+  const match = markdown.match(pattern);
+  return match?.[1]?.trim();
+}
+
+function extractPrimaryDeployment(markdown) {
+  const tableMatch = markdown.match(/\|\s*Primary chat\s*\|\s*`([^`]+)`\s*\|/i);
+  return tableMatch?.[1]?.trim();
+}
+
+function normalizeAzureBaseUrl(endpoint) {
+  const trimmed = endpoint.replace(/\/+$/, "");
+  return trimmed.endsWith("/openai") ? trimmed : `${trimmed}/openai`;
 }
 
 function normalizeWhitespace(value) {

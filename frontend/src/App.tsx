@@ -2,6 +2,7 @@ import { useState } from "react";
 import { SupplierUpload } from "./components/SupplierUpload";
 import { SupplierForm } from "./components/SupplierForm";
 import { AIProcessing } from "./components/AIProcessing";
+import { AIDraftReview } from "./components/AIDraftReview";
 import { ValidationIssues } from "./components/ValidationIssues";
 import { InternalReview } from "./components/InternalReview";
 
@@ -74,14 +75,38 @@ type Screen =
   | "supplier-upload"
   | "supplier-form"
   | "ai-processing"
+  | "ai-draft"
   | "validation"
   | "internal-review";
 
-const FLOW_STEPS = [
-  { id: "supplier-upload" as Screen, label: "1", sublabel: "Underlag" },
-  { id: "supplier-form" as Screen, label: "2", sublabel: "Verifiera" },
-  { id: "validation" as Screen, label: "3A", sublabel: "Validering" },
-  { id: "internal-review" as Screen, label: "3B", sublabel: "Intern granskning" },
+const PAIRS = [
+  {
+    id: "pair1",
+    label: "Par 1",
+    sublabel: "Leverantorsflode",
+    screens: [
+      { id: "supplier-upload" as Screen, label: "1A · Uppladdning" },
+      { id: "supplier-form" as Screen, label: "1B · Artikelformular" },
+    ],
+  },
+  {
+    id: "pair2",
+    label: "Par 2",
+    sublabel: "AI-extraktion",
+    screens: [
+      { id: "ai-processing" as Screen, label: "2A · Bearbetning" },
+      { id: "ai-draft" as Screen, label: "2B · Utkastgranskning" },
+    ],
+  },
+  {
+    id: "pair3",
+    label: "Par 3",
+    sublabel: "Validering och granskning",
+    screens: [
+      { id: "validation" as Screen, label: "3A · Valideringsproblem" },
+      { id: "internal-review" as Screen, label: "3B · Intern granskning" },
+    ],
+  },
 ];
 
 export function App() {
@@ -95,6 +120,15 @@ export function App() {
   const [step2Available, setStep2Available] = useState(false);
   const [step3Available, setStep3Available] = useState(false);
 
+  const screenEnabled: Record<Screen, boolean> = {
+    "supplier-upload": true,
+    "supplier-form": step2Available,
+    "ai-processing": uploadMode === "upload" && uploadedFiles.length > 0,
+    "ai-draft": step2Available,
+    validation: step3Available,
+    "internal-review": step3Available,
+  };
+
   const nav = (nextScreen: Screen) => {
     if (!screenEnabled[nextScreen]) {
       return;
@@ -102,17 +136,10 @@ export function App() {
 
     setScreen(nextScreen);
   };
+
   const openDraftAtField = (field: string) => {
     setFormFocusTarget(ISSUE_FIELD_TO_FORM_TARGET[field] ?? field);
     nav("supplier-form");
-  };
-
-  const screenEnabled: Record<Screen, boolean> = {
-    "supplier-upload": true,
-    "supplier-form": step2Available,
-    "ai-processing": false,
-    validation: step3Available,
-    "internal-review": step3Available,
   };
 
   const handleStartFlow = () => {
@@ -205,23 +232,40 @@ export function App() {
         </div>
 
         <div className="flex items-center gap-1">
-          {FLOW_STEPS.map((step) => (
-            <button
-              key={step.id}
-              onClick={() => nav(step.id)}
-              disabled={!screenEnabled[step.id]}
-              className="rounded-md px-3 py-1.5 transition-all"
-              style={{
-                background: screen === step.id ? "rgba(255,255,255,0.18)" : "transparent",
-                color: screen === step.id ? "#fff" : screenEnabled[step.id] ? "rgba(255,255,255,0.6)" : "rgba(255,255,255,0.3)",
-                fontSize: "12px",
-                fontWeight: screen === step.id ? 600 : 400,
-                border: screen === step.id ? "1px solid rgba(255,255,255,0.2)" : "1px solid transparent",
-                cursor: screenEnabled[step.id] ? "pointer" : "not-allowed",
-              }}
-            >
-              {step.label}
-            </button>
+          {PAIRS.map((pair) => (
+            <div key={pair.id} className="flex items-center gap-0.5">
+              {pair.screens.map((pairScreen) => {
+                const enabled = screenEnabled[pairScreen.id];
+
+                return (
+                  <button
+                    key={pairScreen.id}
+                    onClick={() => nav(pairScreen.id)}
+                    disabled={!enabled}
+                    className="rounded-md px-3 py-1.5 transition-all"
+                    style={{
+                      background: screen === pairScreen.id ? "rgba(255,255,255,0.18)" : "transparent",
+                      color:
+                        screen === pairScreen.id
+                          ? "#fff"
+                          : enabled
+                            ? "rgba(255,255,255,0.6)"
+                            : "rgba(255,255,255,0.3)",
+                      fontSize: "12px",
+                      fontWeight: screen === pairScreen.id ? 600 : 400,
+                      border:
+                        screen === pairScreen.id
+                          ? "1px solid rgba(255,255,255,0.2)"
+                          : "1px solid transparent",
+                      cursor: enabled ? "pointer" : "not-allowed",
+                    }}
+                  >
+                    {pairScreen.label}
+                  </button>
+                );
+              })}
+              <div className="mx-1 h-4 w-px opacity-20" style={{ background: "#fff" }} />
+            </div>
           ))}
         </div>
 
@@ -239,15 +283,17 @@ export function App() {
       </header>
 
       <div className="flex flex-shrink-0 items-center gap-6 border-b border-border px-8 py-2" style={{ background: "var(--card)" }}>
-        {FLOW_STEPS.map((step) => {
-          const active = step.id === screen;
+        {PAIRS.map((pair) => {
+          const active = pair.screens.some((pairScreen) => pairScreen.id === screen);
+          const enabled = pair.screens.some((pairScreen) => screenEnabled[pairScreen.id]);
+
           return (
             <button
-              key={step.id}
-              onClick={() => nav(step.id)}
-              disabled={!screenEnabled[step.id]}
+              key={pair.id}
+              onClick={() => nav(pair.screens[0].id)}
+              disabled={!enabled}
               className="flex items-center gap-2 transition-all"
-              style={{ opacity: screenEnabled[step.id] ? 1 : 0.5, cursor: screenEnabled[step.id] ? "pointer" : "not-allowed" }}
+              style={{ opacity: enabled ? 1 : 0.5, cursor: enabled ? "pointer" : "not-allowed" }}
             >
               <div className="h-1.5 w-1.5 rounded-full" style={{ background: active ? "var(--ms-amber)" : "var(--border)" }} />
               <span
@@ -257,7 +303,7 @@ export function App() {
                   color: active ? "var(--ms-green)" : "var(--muted-foreground)",
                 }}
               >
-                {step.label}: {step.sublabel}
+                {pair.label}: {pair.sublabel}
               </span>
             </button>
           );
@@ -300,11 +346,15 @@ export function App() {
         {screen === "ai-processing" && (
           <AIProcessing
             files={uploadedFiles}
+            articleDraft={articleDraft}
             onProcess={handleProcessUpload}
             processingError={uploadError}
-            onComplete={() => setScreen("supplier-form")}
+            onComplete={() => setScreen("ai-draft")}
             onBack={() => nav("supplier-upload")}
           />
+        )}
+        {screen === "ai-draft" && (
+          <AIDraftReview articleDraft={articleDraft} onNext={handleValidationStart} onBack={() => nav("ai-processing")} />
         )}
         {screen === "validation" && (
           <ValidationIssues onSelectIssue={openDraftAtField} onNext={() => nav("internal-review")} onBack={() => nav("ai-draft")} />
