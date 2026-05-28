@@ -25,6 +25,10 @@ This repo is set up for an internal hackathon with OpenCode, and the GitHub Copi
 
 After changing OpenCode config, restart OpenCode to reload the config.
 
+## Test Branch Note
+
+This repo includes a small test commit on `test/opencode-push` to verify feature branch push access.
+
 ## Useful Skills
 
 Some repo-local OpenCode skills that are useful during the hackathon:
