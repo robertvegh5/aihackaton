@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion } from "motion/react";
 import { FileText, FileSpreadsheet, Cpu, CheckCircle2, ArrowLeft } from "lucide-react";
 import type { ArticleDraft, UploadedFile } from "../App";
@@ -14,52 +14,65 @@ interface AIProcessingProps {
 
 const STEPS = [
   { id: 1, label: "Laser in dokument", detail: "Oatly_Produktblad_2024.pdf", duration: 1200 },
-  { id: 2, label: "OCR och textextraktion", detail: "Identifierar strukturerade falt", duration: 1800 },
+  { id: 2, label: "OCR och textextraktion", detail: "Identifierar strukturerade falt", duration: 1700 },
   { id: 3, label: "Extraherar grunduppgifter", detail: "Artikelnamn, EAN, varumarke, kategori...", duration: 1400 },
-  { id: 4, label: "Extraherar naringsvarden", detail: "Energi, fett, kolhydrater, protein, salt...", duration: 1600 },
+  { id: 4, label: "Extraherar naringsvarden", detail: "Energi, fett, kolhydrater, protein, salt...", duration: 1500 },
   { id: 5, label: "Identifierar allergener", detail: "Genomsoker ingredienslista och markning", duration: 1000 },
   { id: 6, label: "Kartlagger logistikdata", detail: "Hallbarhet, ursprung, forpackningsmatt", duration: 1200 },
   { id: 7, label: "Validerar extraherade falt", detail: "Kontrollerar format och tackning", duration: 900 },
-  { id: 8, label: "Genererar artikelutkast", detail: "Satter samman komplett artikelprofil", duration: 800 },
+  { id: 8, label: "Genererar artikelutkast", detail: "Satter samman komplett artikelprofil", duration: 700 },
 ];
+
+const AUTO_ADVANCE_DELAY_MS = 5000;
 
 export function AIProcessing({ files, articleDraft, onProcess, processingError, onComplete, onBack }: AIProcessingProps) {
   const [currentStep, setCurrentStep] = useState(0);
   const [done, setDone] = useState(false);
+  const onProcessRef = useRef(onProcess);
+  const onCompleteRef = useRef(onComplete);
+
+  useEffect(() => {
+    onProcessRef.current = onProcess;
+  }, [onProcess]);
+
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
 
   useEffect(() => {
     let cancelled = false;
     let totalDelay = 0;
     const timeouts: number[] = [];
+    const minDelay = new Promise((resolve) => {
+      timeouts.push(window.setTimeout(resolve, AUTO_ADVANCE_DELAY_MS));
+    });
 
-    void onProcess().then((success) => {
+    const processPromise = onProcessRef.current();
+
+    STEPS.forEach((step, index) => {
+      totalDelay += step.duration;
+      timeouts.push(
+        window.setTimeout(() => {
+          setCurrentStep(index + 1);
+        }, totalDelay),
+      );
+    });
+
+    void Promise.all([processPromise, minDelay]).then(([success]) => {
       if (!success || cancelled) {
         return;
       }
 
-      STEPS.forEach((step, index) => {
-        totalDelay += step.duration;
-        timeouts.push(
-          window.setTimeout(() => {
-            setCurrentStep(index + 1);
-            if (index === STEPS.length - 1) {
-              timeouts.push(
-                window.setTimeout(() => {
-                  setDone(true);
-                  onComplete();
-                }, 400),
-              );
-            }
-          }, totalDelay),
-        );
-      });
+      setCurrentStep(STEPS.length);
+      setDone(true);
+      onCompleteRef.current();
     });
 
     return () => {
       cancelled = true;
       timeouts.forEach((timeout) => window.clearTimeout(timeout));
     };
-  }, [onComplete, onProcess]);
+  }, []);
 
   const progress = Math.round((currentStep / STEPS.length) * 100);
 
@@ -75,7 +88,7 @@ export function AIProcessing({ files, articleDraft, onProcess, processingError, 
         </div>
         <h1 style={{ color: "var(--ms-green)" }}>AI analyserar uppladdade filer</h1>
         <p className="mt-1" style={{ color: "var(--muted-foreground)", fontSize: "15px" }}>
-          Du kommer vidare till steg 2B automatiskt nar analysen ar klar.
+          Laddningen visas i cirka 5 sekunder och hoppar sedan automatiskt vidare till artikelformularet.
         </p>
       </div>
 
@@ -215,7 +228,7 @@ export function AIProcessing({ files, articleDraft, onProcess, processingError, 
           <ArrowLeft size={16} /> Tillbaka
         </button>
         <p style={{ fontSize: "13px", color: "var(--muted-foreground)" }}>
-          {done ? "Analysen ar klar. Du skickas vidare till steg 2B." : "Vanta tills analysen ar klar for att fortsatta."}
+          {done ? "Analysen ar klar. Du skickas vidare till artikelformularet." : "AI-bearbetning pagar. Du skickas vidare automatiskt efter cirka 5 sekunder."}
         </p>
       </div>
     </div>

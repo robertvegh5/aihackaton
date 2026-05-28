@@ -306,9 +306,9 @@ function mapArticleDraftToSections(articleDraft: ArticleDraft): DraftSection[] {
     {
       section: "Allergener",
       fields: [
-        { label: "Innehaller mjolk", value: allergenSet.has("milk") ? "Ja" : "Nej", confidence: allergenConfidence, source: sourceName },
-        { label: "Innehaller soja", value: allergenSet.has("soy") ? "Ja" : "Nej", confidence: allergenConfidence, source: sourceName },
-        { label: "Innehaller gluten", value: allergenSet.has("gluten") ? "Ja" : "Nej", confidence: allergenConfidence, source: sourceName },
+        { label: "Innehaller mjolk", value: allergenSet.has("Mjölk") ? "Ja" : "Nej", confidence: allergenConfidence, source: sourceName },
+        { label: "Innehaller soja", value: allergenSet.has("Soja") ? "Ja" : "Nej", confidence: allergenConfidence, source: sourceName },
+        { label: "Innehaller gluten", value: allergenSet.has("Gluten") ? "Ja" : "Nej", confidence: allergenConfidence, source: sourceName },
         { label: "Ingredienser", value: articleDraft.ingredients.text || "-", confidence: ingredientConfidence, source: sourceName, missing: !articleDraft.ingredients.text },
       ],
     },

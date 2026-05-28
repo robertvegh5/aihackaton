@@ -119,6 +119,14 @@ const PAIRS = [
   },
 ];
 
+const HEADER_NAV_ITEMS: Array<{ id: Screen; label: string }> = [
+  { id: "supplier-upload", label: "Uppladdning" },
+  { id: "ai-processing", label: "Bearbetning" },
+  { id: "supplier-form", label: "Artikelformular" },
+  { id: "validation", label: "Valideringsproblem" },
+  { id: "internal-review", label: "Intern granskning" },
+];
+
 export function App() {
   const [screen, setScreen] = useState<Screen>("supplier-upload");
   const [uploadMode, setUploadMode] = useState<UploadMode>("upload");
@@ -256,41 +264,28 @@ export function App() {
         </div>
 
         <div className="flex items-center gap-1">
-          {PAIRS.map((pair) => (
-            <div key={pair.id} className="flex items-center gap-0.5">
-              {pair.screens.map((pairScreen) => {
-                const enabled = screenEnabled[pairScreen.id];
+          {HEADER_NAV_ITEMS.map((item) => {
+            const enabled = screenEnabled[item.id];
 
-                return (
-                  <button
-                    key={pairScreen.id}
-                    onClick={() => nav(pairScreen.id)}
-                    disabled={!enabled}
-                    className="rounded-md px-3 py-1.5 transition-all"
-                    style={{
-                      background: screen === pairScreen.id ? "rgba(255,255,255,0.18)" : "transparent",
-                      color:
-                        screen === pairScreen.id
-                          ? "#fff"
-                          : enabled
-                            ? "rgba(255,255,255,0.6)"
-                            : "rgba(255,255,255,0.3)",
-                      fontSize: "12px",
-                      fontWeight: screen === pairScreen.id ? 600 : 400,
-                      border:
-                        screen === pairScreen.id
-                          ? "1px solid rgba(255,255,255,0.2)"
-                          : "1px solid transparent",
-                      cursor: enabled ? "pointer" : "not-allowed",
-                    }}
-                  >
-                    {pairScreen.label}
-                  </button>
-                );
-              })}
-              <div className="mx-1 h-4 w-px opacity-20" style={{ background: "#fff" }} />
-            </div>
-          ))}
+            return (
+              <button
+                key={item.id}
+                onClick={() => nav(item.id)}
+                disabled={!enabled}
+                className="rounded-md px-3 py-1.5 transition-all"
+                style={{
+                  background: screen === item.id ? "rgba(255,255,255,0.18)" : "transparent",
+                  color: screen === item.id ? "#fff" : enabled ? "rgba(255,255,255,0.6)" : "rgba(255,255,255,0.3)",
+                  fontSize: "12px",
+                  fontWeight: screen === item.id ? 600 : 400,
+                  border: screen === item.id ? "1px solid rgba(255,255,255,0.2)" : "1px solid transparent",
+                  cursor: enabled ? "pointer" : "not-allowed",
+                }}
+              >
+                {item.label}
+              </button>
+            );
+          })}
         </div>
 
         <div className="flex items-center gap-2">
@@ -375,7 +370,7 @@ export function App() {
             articleDraft={articleDraft}
             onProcess={handleProcessUpload}
             processingError={uploadError}
-            onComplete={() => setScreen("ai-draft")}
+            onComplete={() => setScreen("supplier-form")}
             onBack={() => nav("supplier-upload")}
           />
         )}
