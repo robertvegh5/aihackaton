@@ -52,6 +52,15 @@ export function InternalReview({ onBack }: InternalReviewProps) {
 
   const article = ARTICLES.find((entry) => entry.id === selected) ?? ARTICLES[0];
   const statusConfig = STATUS_CONFIG[article.status];
+  const actionDisabledStyle = {
+    background: "var(--muted)",
+    border: "1px solid var(--border)",
+    color: "var(--muted-foreground)",
+    fontWeight: 600,
+    fontSize: "13px",
+    cursor: "not-allowed",
+    opacity: 0.8,
+  } as const;
 
   return (
     <div className="flex h-full flex-col">
@@ -63,9 +72,9 @@ export function InternalReview({ onBack }: InternalReviewProps) {
         </div>
         <div className="flex items-center justify-between">
           <div>
-            <h1 style={{ color: "var(--ms-green)" }}>Artikelgranskningsko</h1>
+            <h1 style={{ color: "var(--ms-green)" }}>Intern granskning</h1>
             <p className="mt-1" style={{ color: "var(--muted-foreground)", fontSize: "15px" }}>
-              Artikelutkast inkomna fran leverantorer. Godkann, avvisa eller begar komplettering.
+              Har ser du vilka artikelutkast som ar redo for intern bedomning och vad som behovs for beslut.
             </p>
           </div>
           <div className="flex gap-2">
@@ -160,7 +169,7 @@ export function InternalReview({ onBack }: InternalReviewProps) {
                 <button className="flex items-center gap-1.5 rounded-lg px-3 py-2 transition-all hover:bg-muted" style={{ border: "1px solid var(--border)", fontSize: "13px", color: "var(--foreground)" }}>
                   <Eye size={14} /> Forhandsgranska
                 </button>
-                <button className="flex items-center gap-1.5 rounded-lg px-3 py-2 transition-all hover:bg-muted" style={{ border: "1px solid var(--border)", fontSize: "13px", color: "var(--foreground)" }}>
+                <button disabled className="flex items-center gap-1.5 rounded-lg px-3 py-2 transition-all" style={actionDisabledStyle} title="Kommer snart">
                   <MessageSquare size={14} /> Kommentar
                 </button>
               </div>
@@ -218,7 +227,7 @@ export function InternalReview({ onBack }: InternalReviewProps) {
                 <button className="flex items-center gap-2 rounded-lg px-4 py-2.5 transition-all hover:opacity-90" style={{ background: "var(--ms-status-error)", color: "#fff", fontWeight: 600, fontSize: "13px" }}>
                   <ThumbsDown size={14} /> Avvisa
                 </button>
-                <button className="flex items-center gap-2 rounded-lg px-4 py-2.5 transition-all" style={{ background: "var(--muted)", border: "1px solid var(--border)", color: "var(--foreground)", fontWeight: 600, fontSize: "13px" }}>
+                <button disabled className="flex items-center gap-2 rounded-lg px-4 py-2.5 transition-all" style={actionDisabledStyle} title="Kommer snart">
                   <MessageSquare size={14} /> Begar komplettering
                 </button>
                 <div className="flex-1" />
