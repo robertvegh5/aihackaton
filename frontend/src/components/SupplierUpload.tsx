@@ -1,27 +1,100 @@
-import { useState, type DragEvent } from "react";
-import { Upload, FileText, FileSpreadsheet, CheckCircle2, ArrowRight, Info } from "lucide-react";
+import { useRef, useState, type ChangeEvent, type DragEvent } from "react";
+import { Upload, FileText, FileSpreadsheet, CheckCircle2, ArrowRight, Info, Trash2 } from "lucide-react";
+import type { UploadedFile, UploadMode } from "../App";
 
 interface SupplierUploadProps {
+  mode: UploadMode;
+  files: UploadedFile[];
+  error: string | null;
+  isSubmitting: boolean;
+  onModeChange: (mode: UploadMode) => void;
+  onFilesChange: (files: UploadedFile[]) => void;
   onNext: () => void;
 }
 
-export function SupplierUpload({ onNext }: SupplierUploadProps) {
-  const [dragOver, setDragOver] = useState(false);
-  const [files, setFiles] = useState<{ name: string; size: string; type: string }[]>([]);
-  const [mode, setMode] = useState<"upload" | "manual">("upload");
+const allowedFileTypes = [
+  ".pdf",
+  ".xlsx",
+  ".csv",
+  ".docx",
+  ".png",
+  ".jpg",
+  ".jpeg",
+  ".webp",
+];
 
-  const sampleFiles = [
-    { name: "Produktblad_Oatly_Havredryck_2024.pdf", size: "2.4 MB", type: "pdf" },
-    { name: "Artikeldata_Martin_Servera_Q4.xlsx", size: "148 KB", type: "xlsx" },
-  ];
+const maxFileSizeBytes = 25 * 1024 * 1024;
+
+export function SupplierUpload({ mode, files, error, isSubmitting, onModeChange, onFilesChange, onNext }: SupplierUploadProps) {
+  const [dragOver, setDragOver] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
 
   const handleDrop = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     setDragOver(false);
-    setFiles(sampleFiles);
+    addFiles(event.dataTransfer.files);
   };
 
-  const addSampleFile = () => setFiles(sampleFiles);
+  const handleFileInputChange = (event: ChangeEvent<HTMLInputElement>) => {
+    addFiles(event.target.files);
+    event.target.value = "";
+  };
+
+  const addFiles = (fileList: FileList | null) => {
+    if (!fileList) {
+      return;
+    }
+
+    const nextFiles: UploadedFile[] = [];
+    const rejectedFiles: string[] = [];
+
+    Array.from(fileList).forEach((file) => {
+      const extension = getFileExtension(file.name);
+      const isAllowed = allowedFileTypes.includes(extension);
+      const isSizeAllowed = file.size <= maxFileSizeBytes;
+
+      if (!isAllowed || !isSizeAllowed) {
+        rejectedFiles.push(file.name);
+        return;
+      }
+
+      nextFiles.push({
+        id: `${file.name}-${file.lastModified}-${file.size}`,
+        file,
+        name: file.name,
+        size: file.size,
+        type: extension.replace(".", "") || file.type || "file",
+      });
+    });
+
+    if (rejectedFiles.length > 0) {
+      setUploadError(`Filerna kunde inte laddas upp: ${rejectedFiles.join(", ")}. Tillatna filer ar PDF, XLSX, CSV, DOCX och bilder upp till 25 MB.`);
+    } else {
+      setUploadError(null);
+    }
+
+    if (nextFiles.length === 0) {
+      return;
+    }
+
+    const mergedFiles = [...files];
+    nextFiles.forEach((nextFile) => {
+      if (!mergedFiles.some((existingFile) => existingFile.id === nextFile.id)) {
+        mergedFiles.push(nextFile);
+      }
+    });
+
+    onFilesChange(mergedFiles);
+  };
+
+  const removeFile = (fileId: string) => {
+    onFilesChange(files.filter((file) => file.id !== fileId));
+    setUploadError(null);
+  };
+
+  const openFilePicker = () => inputRef.current?.click();
+  const canContinue = mode === "manual" || files.length > 0;
 
   return (
     <div className="flex h-full flex-col">
@@ -44,7 +117,10 @@ export function SupplierUpload({ onNext }: SupplierUploadProps) {
           {(["upload", "manual"] as const).map((nextMode) => (
             <button
               key={nextMode}
-              onClick={() => setMode(nextMode)}
+              onClick={() => {
+                onModeChange(nextMode);
+                setUploadError(null);
+              }}
               className="rounded-md px-4 py-1.5 transition-all"
               style={{
                 background: mode === nextMode ? "#fff" : "transparent",
@@ -61,6 +137,14 @@ export function SupplierUpload({ onNext }: SupplierUploadProps) {
 
         {mode === "upload" ? (
           <>
+            <input
+              ref={inputRef}
+              type="file"
+              multiple
+              accept={allowedFileTypes.join(",")}
+              onChange={handleFileInputChange}
+              className="hidden"
+            />
             <div
               onDragOver={(event) => {
                 event.preventDefault();
@@ -68,7 +152,7 @@ export function SupplierUpload({ onNext }: SupplierUploadProps) {
               }}
               onDragLeave={() => setDragOver(false)}
               onDrop={handleDrop}
-              onClick={addSampleFile}
+              onClick={openFilePicker}
               className="relative mb-4 cursor-pointer rounded-xl transition-all"
               style={{
                 border: `2px dashed ${dragOver ? "var(--ms-green)" : "var(--border)"}`,
@@ -90,6 +174,15 @@ export function SupplierUpload({ onNext }: SupplierUploadProps) {
                 </p>
               </div>
             </div>
+
+            {(uploadError || error) && (
+              <div
+                className="mb-4 rounded-lg px-4 py-3"
+                style={{ background: "rgba(192,57,43,0.08)", border: "1px solid rgba(192,57,43,0.2)", color: "var(--ms-status-error)" }}
+              >
+                <p style={{ fontSize: "13px", lineHeight: 1.5 }}>{uploadError || error}</p>
+              </div>
+            )}
 
             {files.length > 0 && (
               <div className="mb-4 flex flex-col gap-2">
@@ -113,9 +206,20 @@ export function SupplierUpload({ onNext }: SupplierUploadProps) {
                       <p className="truncate" style={{ fontSize: "13px", fontWeight: 500, color: "var(--foreground)" }}>
                         {file.name}
                       </p>
-                      <p style={{ fontSize: "12px", color: "var(--muted-foreground)" }}>{file.size}</p>
+                      <p style={{ fontSize: "12px", color: "var(--muted-foreground)" }}>{formatFileSize(file.size)}</p>
                     </div>
                     <CheckCircle2 size={16} style={{ color: "var(--ms-status-ok)" }} />
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        removeFile(file.id);
+                      }}
+                      className="flex h-8 w-8 items-center justify-center rounded-md transition-all hover:bg-muted"
+                      aria-label={`Ta bort ${file.name}`}
+                    >
+                      <Trash2 size={15} style={{ color: "var(--muted-foreground)" }} />
+                    </button>
                   </div>
                 ))}
               </div>
@@ -143,17 +247,46 @@ export function SupplierUpload({ onNext }: SupplierUploadProps) {
 
       <div className="flex items-center justify-between border-t border-border px-8 py-5" style={{ background: "var(--card)" }}>
         <p style={{ fontSize: "13px", color: "var(--muted-foreground)" }}>
-          {files.length > 0 ? `${files.length} filer redo for AI-extraktion` : "Inga filer uppladdade annu"}
+          {mode === "manual"
+            ? "Manuellt inmatningslage valt"
+            : files.length > 0
+              ? `${files.length} filer redo for AI-extraktion`
+              : "Ladda upp minst en fil for att fortsatta"}
         </p>
         <button
           onClick={onNext}
+          disabled={!canContinue || isSubmitting}
           className="flex items-center gap-2 rounded-lg px-5 py-2.5 transition-all hover:opacity-90"
-          style={{ background: "var(--ms-green)", color: "#fff", fontWeight: 600, fontSize: "14px" }}
+          style={{
+            background: canContinue && !isSubmitting ? "var(--ms-green)" : "var(--muted)",
+            color: canContinue && !isSubmitting ? "#fff" : "var(--muted-foreground)",
+            fontWeight: 600,
+            fontSize: "14px",
+            cursor: canContinue && !isSubmitting ? "pointer" : "not-allowed",
+            opacity: canContinue && !isSubmitting ? 1 : 0.7,
+          }}
         >
-          {files.length > 0 ? "Starta AI-extraktion" : "Fortsatt manuellt"}
+          {isSubmitting ? "Bearbetar..." : mode === "manual" ? "Fortsatt manuellt" : "Starta AI-extraktion"}
           <ArrowRight size={16} />
         </button>
       </div>
     </div>
   );
+}
+
+function getFileExtension(fileName: string) {
+  const extensionIndex = fileName.lastIndexOf(".");
+  return extensionIndex >= 0 ? fileName.slice(extensionIndex).toLowerCase() : "";
+}
+
+function formatFileSize(sizeInBytes: number) {
+  if (sizeInBytes >= 1024 * 1024) {
+    return `${(sizeInBytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
+  if (sizeInBytes >= 1024) {
+    return `${Math.round(sizeInBytes / 1024)} KB`;
+  }
+
+  return `${sizeInBytes} B`;
 }

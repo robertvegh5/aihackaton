@@ -4,7 +4,7 @@ info:
   version: 0.1.0
   description: |
     OpenAPI specification for the hackathon backend scaffold.
-    The current implementation returns stubbed responses for demo flows.
+    The current implementation parses uploaded PDFs when possible and maps detected values into a draft response.
 servers:
   - url: http://localhost:8787
 paths:
@@ -39,21 +39,33 @@ paths:
       summary: Generate article draft from a supplier submission
       operationId: extractArticleDraft
       requestBody:
-        required: false
+        required: true
         content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ExtractRequest'
+            example:
+              mode: upload
+              scenarioId: scenario-b
           application/json:
             schema:
-              type: object
-              additionalProperties: true
+              $ref: '#/components/schemas/ManualExtractRequest'
             example:
-              scenarioId: scenario-b
+              mode: manual
+              scenarioId: scenario-a
       responses:
         '200':
-          description: Stubbed article draft
+          description: Article draft generated from uploaded files or manual mode. Uploaded PDFs are parsed and mapped into draft fields when text extraction succeeds.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ExtractResponse'
+        '400':
+          description: Invalid upload payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /api/validate:
     post:
@@ -169,7 +181,7 @@ components:
           type: string
         type:
           type: string
-          example: label-image
+          example: pdf
         name:
           type: string
         path:
@@ -321,6 +333,66 @@ components:
           type: array
           items:
             type: string
+        extractedMetadata:
+          $ref: '#/components/schemas/ExtractedMetadata'
+
+    ExtractedMetadata:
+      type: object
+      properties:
+        articleNumber:
+          type: string
+        category:
+          type: string
+        ean:
+          type: string
+        countryOfOrigin:
+          type: string
+        packaging:
+          type: string
+        netWeight:
+          type: string
+        storage:
+          type: string
+
+    ExtractRequest:
+      type: object
+      required:
+        - mode
+      properties:
+        mode:
+          type: string
+          enum:
+            - upload
+            - manual
+        scenarioId:
+          type: string
+          example: scenario-b
+        files:
+          type: array
+          items:
+            type: string
+            format: binary
+
+    ManualExtractRequest:
+      type: object
+      required:
+        - mode
+      properties:
+        mode:
+          type: string
+          enum:
+            - manual
+        scenarioId:
+          type: string
+          example: scenario-a
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
 
     ValidationIssue:
       type: object

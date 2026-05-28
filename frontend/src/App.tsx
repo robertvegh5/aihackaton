@@ -6,6 +6,71 @@ import { AIDraftReview } from "./components/AIDraftReview";
 import { ValidationIssues } from "./components/ValidationIssues";
 import { InternalReview } from "./components/InternalReview";
 
+export type UploadMode = "upload" | "manual";
+
+export type UploadedFile = {
+  id: string;
+  file: File;
+  name: string;
+  size: number;
+  type: string;
+};
+
+export type ArticleDraft = {
+  supplierSubmissionId: string;
+  scenarioId: string;
+  status: string;
+  sourceFiles: Array<{
+    id: string;
+    type: string;
+    name: string;
+    path: string;
+  }>;
+  displayImages: Array<{
+    id: string;
+    type: string;
+    name: string;
+    path: string;
+  }>;
+  product: {
+    productName: string;
+    brand: string;
+    packageSize: string;
+  };
+  ingredients: {
+    text: string;
+  };
+  allergens: {
+    declared: string[];
+  };
+  nutrition: {
+    energyKj: number | null;
+    fat: number | null;
+    carbohydrates: number | null;
+    protein: number | null;
+    salt: number | null;
+  };
+  generatedCopy: {
+    shortDescription: string;
+  };
+  confidence: {
+    product: number;
+    ingredients: number;
+    allergens: number;
+    nutrition: number;
+  };
+  missingFields: string[];
+  extractedMetadata?: {
+    articleNumber?: string;
+    category?: string;
+    ean?: string;
+    countryOfOrigin?: string;
+    packaging?: string;
+    netWeight?: string;
+    storage?: string;
+  };
+};
+
 type Screen =
   | "supplier-upload"
   | "supplier-form"
@@ -46,8 +111,66 @@ const PAIRS = [
 
 export function App() {
   const [screen, setScreen] = useState<Screen>("supplier-upload");
+  const [uploadMode, setUploadMode] = useState<UploadMode>("upload");
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [isExtracting, setIsExtracting] = useState(false);
+  const [articleDraft, setArticleDraft] = useState<ArticleDraft | null>(null);
 
   const nav = (nextScreen: Screen) => setScreen(nextScreen);
+
+  const handleGoToSupplierForm = async () => {
+    if (uploadMode === "upload" && uploadedFiles.length === 0) {
+      return;
+    }
+
+    setIsExtracting(true);
+    setUploadError(null);
+
+    try {
+      if (uploadMode === "upload") {
+        const formData = new FormData();
+        formData.append("mode", uploadMode);
+        formData.append("scenarioId", "scenario-b");
+        uploadedFiles.forEach((uploadedFile) => {
+          formData.append("files", uploadedFile.file, uploadedFile.name);
+        });
+
+        const response = await fetch("/api/extract", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        const data = (await response.json()) as { articleDraft: ArticleDraft };
+        setArticleDraft(data.articleDraft);
+      } else {
+        const response = await fetch("/api/extract", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ mode: uploadMode, scenarioId: "scenario-a" }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        const data = (await response.json()) as { articleDraft: ArticleDraft };
+        setArticleDraft(data.articleDraft);
+      }
+
+      nav("supplier-form");
+    } catch (error) {
+      setUploadError(error instanceof Error ? `Kunde inte starta extraktion: ${error.message}` : "Kunde inte starta extraktion.");
+    } finally {
+      setIsExtracting(false);
+    }
+  };
 
   return (
     <div className="flex h-screen flex-col overflow-hidden" style={{ background: "var(--background)" }}>
@@ -158,9 +281,25 @@ export function App() {
       </div>
 
       <main className="flex-1 overflow-hidden">
-        {screen === "supplier-upload" && <SupplierUpload onNext={() => nav("supplier-form")} />}
+        {screen === "supplier-upload" && (
+          <SupplierUpload
+            mode={uploadMode}
+            files={uploadedFiles}
+            error={uploadError}
+            isSubmitting={isExtracting}
+            onModeChange={setUploadMode}
+            onFilesChange={setUploadedFiles}
+            onNext={handleGoToSupplierForm}
+          />
+        )}
         {screen === "supplier-form" && (
-          <SupplierForm onNext={() => nav("ai-processing")} onBack={() => nav("supplier-upload")} />
+          <SupplierForm
+            articleDraft={articleDraft}
+            uploadedFiles={uploadedFiles}
+            uploadMode={uploadMode}
+            onNext={() => nav("ai-processing")}
+            onBack={() => nav("supplier-upload")}
+          />
         )}
         {screen === "ai-processing" && (
           <AIProcessing onNext={() => nav("ai-draft")} onBack={() => nav("supplier-form")} />

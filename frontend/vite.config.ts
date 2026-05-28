@@ -12,5 +12,10 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    proxy: {
+      "/api": "http://localhost:8787",
+      "/openapi.yaml": "http://localhost:8787",
+      "/api-docs": "http://localhost:8787",
+    },
   },
 });
