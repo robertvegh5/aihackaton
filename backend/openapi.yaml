@@ -1,0 +1,435 @@
+openapi: 3.0.3
+info:
+  title: Supplier Intake Backend API
+  version: 0.1.0
+  description: |
+    OpenAPI specification for the hackathon backend scaffold.
+    The current implementation returns stubbed responses for demo flows.
+servers:
+  - url: http://localhost:8787
+paths:
+  /api/health:
+    get:
+      summary: Health check
+      operationId: getHealth
+      responses:
+        '200':
+          description: Backend is reachable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              example:
+                ok: true
+
+  /api/scenarios:
+    get:
+      summary: List demo scenarios
+      operationId: listScenarios
+      responses:
+        '200':
+          description: Available demo scenarios
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScenariosResponse'
+
+  /api/extract:
+    post:
+      summary: Generate article draft from a supplier submission
+      operationId: extractArticleDraft
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+            example:
+              scenarioId: scenario-b
+      responses:
+        '200':
+          description: Stubbed article draft
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExtractResponse'
+
+  /api/validate:
+    post:
+      summary: Validate an article draft
+      operationId: validateArticleDraft
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+            example:
+              articleDraft:
+                supplierSubmissionId: submission-scenario-b
+      responses:
+        '200':
+          description: Stubbed validation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidateResponse'
+
+  /api/submit-corrections:
+    post:
+      summary: Submit supplier corrections and revalidate
+      operationId: submitCorrections
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+            example:
+              supplierSubmissionId: submission-scenario-b
+              corrections:
+                nutrition:
+                  energyKj: 240
+      responses:
+        '200':
+          description: Stubbed updated draft and validation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubmitCorrectionsResponse'
+
+  /api/internal-status/{id}:
+    get:
+      summary: Get internal approval readiness status for a submission
+      operationId: getInternalStatus
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Supplier submission identifier
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Current status for the requested supplier submission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalStatusResponse'
+
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      required:
+        - ok
+      properties:
+        ok:
+          type: boolean
+
+    ScenarioSummary:
+      type: object
+      required:
+        - id
+        - name
+        - description
+      properties:
+        id:
+          type: string
+          example: scenario-a
+        name:
+          type: string
+          example: Almost approved
+        description:
+          type: string
+          example: A near-complete submission with a small number of fixable issues.
+
+    ScenariosResponse:
+      type: object
+      required:
+        - scenarios
+      properties:
+        scenarios:
+          type: array
+          items:
+            $ref: '#/components/schemas/ScenarioSummary'
+
+    SourceFile:
+      type: object
+      required:
+        - id
+        - type
+        - name
+        - path
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          example: label-image
+        name:
+          type: string
+        path:
+          type: string
+
+    DisplayImage:
+      type: object
+      required:
+        - id
+        - type
+        - name
+        - path
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          example: hero
+        name:
+          type: string
+        path:
+          type: string
+
+    Product:
+      type: object
+      required:
+        - productName
+        - brand
+        - packageSize
+      properties:
+        productName:
+          type: string
+        brand:
+          type: string
+        packageSize:
+          type: string
+
+    Ingredients:
+      type: object
+      required:
+        - text
+      properties:
+        text:
+          type: string
+
+    Allergens:
+      type: object
+      required:
+        - declared
+      properties:
+        declared:
+          type: array
+          items:
+            type: string
+
+    Nutrition:
+      type: object
+      required:
+        - energyKj
+        - fat
+        - carbohydrates
+        - protein
+        - salt
+      properties:
+        energyKj:
+          type: number
+          nullable: true
+        fat:
+          type: number
+        carbohydrates:
+          type: number
+        protein:
+          type: number
+        salt:
+          type: number
+
+    GeneratedCopy:
+      type: object
+      required:
+        - shortDescription
+      properties:
+        shortDescription:
+          type: string
+
+    Confidence:
+      type: object
+      required:
+        - product
+        - ingredients
+        - allergens
+        - nutrition
+      properties:
+        product:
+          type: number
+        ingredients:
+          type: number
+        allergens:
+          type: number
+        nutrition:
+          type: number
+
+    ArticleDraft:
+      type: object
+      required:
+        - supplierSubmissionId
+        - scenarioId
+        - status
+        - sourceFiles
+        - displayImages
+        - product
+        - ingredients
+        - allergens
+        - nutrition
+        - generatedCopy
+        - confidence
+        - missingFields
+      properties:
+        supplierSubmissionId:
+          type: string
+        scenarioId:
+          type: string
+        status:
+          type: string
+          enum:
+            - draft
+            - needs_fixes
+            - ready_for_internal_approval
+        sourceFiles:
+          type: array
+          items:
+            $ref: '#/components/schemas/SourceFile'
+        displayImages:
+          type: array
+          items:
+            $ref: '#/components/schemas/DisplayImage'
+        product:
+          $ref: '#/components/schemas/Product'
+        ingredients:
+          $ref: '#/components/schemas/Ingredients'
+        allergens:
+          $ref: '#/components/schemas/Allergens'
+        nutrition:
+          $ref: '#/components/schemas/Nutrition'
+        generatedCopy:
+          $ref: '#/components/schemas/GeneratedCopy'
+        confidence:
+          $ref: '#/components/schemas/Confidence'
+        missingFields:
+          type: array
+          items:
+            type: string
+
+    ValidationIssue:
+      type: object
+      required:
+        - id
+        - field
+        - severity
+        - message
+        - suggestedFix
+      properties:
+        id:
+          type: string
+        field:
+          type: string
+        severity:
+          type: string
+          enum:
+            - blocking
+            - warning
+        message:
+          type: string
+        suggestedFix:
+          type: string
+
+    SuggestedFix:
+      type: object
+      required:
+        - issueId
+        - action
+      properties:
+        issueId:
+          type: string
+        action:
+          type: string
+
+    ValidationResult:
+      type: object
+      required:
+        - isReadyForInternalApproval
+        - blockingIssues
+        - warnings
+        - passedRules
+        - failedRules
+        - suggestedFixes
+      properties:
+        isReadyForInternalApproval:
+          type: boolean
+        blockingIssues:
+          type: array
+          items:
+            $ref: '#/components/schemas/ValidationIssue'
+        warnings:
+          type: array
+          items:
+            $ref: '#/components/schemas/ValidationIssue'
+        passedRules:
+          type: array
+          items:
+            type: string
+        failedRules:
+          type: array
+          items:
+            type: string
+        suggestedFixes:
+          type: array
+          items:
+            $ref: '#/components/schemas/SuggestedFix'
+
+    ExtractResponse:
+      type: object
+      required:
+        - articleDraft
+      properties:
+        articleDraft:
+          $ref: '#/components/schemas/ArticleDraft'
+
+    ValidateResponse:
+      type: object
+      required:
+        - validationResult
+      properties:
+        validationResult:
+          $ref: '#/components/schemas/ValidationResult'
+
+    SubmitCorrectionsResponse:
+      type: object
+      required:
+        - articleDraft
+        - validationResult
+      properties:
+        articleDraft:
+          $ref: '#/components/schemas/ArticleDraft'
+        validationResult:
+          $ref: '#/components/schemas/ValidationResult'
+
+    InternalStatusResponse:
+      type: object
+      required:
+        - supplierSubmissionId
+        - status
+        - isReadyForInternalApproval
+      properties:
+        supplierSubmissionId:
+          type: string
+        status:
+          type: string
+          enum:
+            - draft
+            - needs_fixes
+            - ready_for_internal_approval
+        isReadyForInternalApproval:
+          type: boolean
