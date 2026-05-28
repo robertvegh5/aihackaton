@@ -55,29 +55,29 @@ const SECTION_ORDER: Array<{ id: SectionId; label: string; required: boolean }> 
 
 const ALLERGENS = [
   "Gluten",
-  "Kraftdjur",
-  "Agg",
+  "Kräftdjur",
+  "Ägg",
   "Fisk",
-  "Jordnotter",
+  "Jordnötter",
   "Soja",
-  "Mjolk",
-  "Notter",
+  "Mjölk",
+  "Nötter",
   "Selleri",
   "Senap",
-  "Sesamfron",
+  "Sesamfrön",
   "Svaveldioxid",
   "Lupin",
-  "Blotdjur",
+  "Blötdjur",
 ];
 
 export function SupplierForm({ articleDraft, uploadedFiles, uploadMode, onNext, onBack }: SupplierFormProps) {
   const [activeSection, setActiveSection] = useState<SectionId>("basic");
   const [formValues, setFormValues] = useState<FormValues>(() => buildFormValues(articleDraft, uploadedFiles));
-  const [allergens, setAllergens] = useState<string[]>(() => articleDraft?.allergens.declared ?? ["Mjolk", "Soja"]);
+  const [allergens, setAllergens] = useState<string[]>(() => articleDraft?.allergens.declared ?? ["Mjölk", "Soja"]);
 
   useEffect(() => {
     setFormValues(buildFormValues(articleDraft, uploadedFiles));
-    setAllergens(articleDraft?.allergens.declared ?? ["Mjolk", "Soja"]);
+    setAllergens(articleDraft?.allergens.declared ?? ["Mjölk", "Soja"]);
   }, [articleDraft, uploadedFiles]);
 
   const missingCount = countMissing(formValues, articleDraft);

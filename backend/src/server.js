@@ -167,13 +167,17 @@ async function buildDraftFromFiles(files) {
       .filter(Boolean);
     const labeledValues = extractLabeledValues(text, [
       "Artikelnummer",
+      "Art.nr",
       "Varumarke",
+      "Leverantor",
       "Kategori",
       "EAN",
       "Ursprungsland",
       "Forpackning",
       "Nettovikt",
       "Forvaring",
+      "Allergener",
+      "Allergeninformation",
     ]);
 
     const productName =
@@ -181,8 +185,8 @@ async function buildDraftFromFiles(files) {
       findLineContaining(lines, /Ekologiska|Ekologisk|Produktbeskrivning/i) ||
       draftStub.product.productName;
 
-    const articleNumber = labeledValues.Artikelnummer || "";
-    const brand = labeledValues.Varumarke || draftStub.product.brand;
+    const articleNumber = labeledValues.Artikelnummer || labeledValues["Art.nr"] || "";
+    const brand = labeledValues.Varumarke || labeledValues.Leverantor || draftStub.product.brand;
     const category = labeledValues.Kategori || "";
     const ean = normalizeEan(labeledValues.EAN || "");
     const countryOfOrigin = labeledValues.Ursprungsland || "";
@@ -190,13 +194,20 @@ async function buildDraftFromFiles(files) {
     const netWeight = labeledValues.Nettovikt || "";
     const storage = labeledValues.Forvaring || "";
     const shortDescription = extractSectionText(text, "Produktbeskrivning", ["Ingredienser", "Naringsvarde per 100 g", "Naringsvarde per 100 ml"]) || draftStub.generatedCopy.shortDescription;
-    const ingredientsText = extractSectionText(text, "Ingredienser", ["Naringsvarde per 100 g", "Naringsvarde per 100 ml"]) || draftStub.ingredients.text;
+    const ingredientsText = extractSectionText(text, "Ingredienser", ["Allergener", "Allergeninformation", "Naringsvarde per 100 g", "Naringsvarde per 100 ml"]) || draftStub.ingredients.text;
+    const allergenText =
+      extractSectionText(text, "Allergener", ["Allergeninformation", "Naringsvarde per 100 g", "Naringsvarde per 100 ml", "Forvaring"]) ||
+      extractSectionText(text, "Allergeninformation", ["Allergener", "Naringsvarde per 100 g", "Naringsvarde per 100 ml", "Forvaring"]) ||
+      labeledValues.Allergener ||
+      labeledValues.Allergeninformation ||
+      "";
     const nutritionLine =
       extractSectionText(text, "Naringsvarde per 100 g", ["Forvaring", "Allergener"]) ||
       extractSectionText(text, "Naringsvarde per 100 ml", ["Forvaring", "Allergener"]) ||
       "";
 
     const nutrition = extractNutrition(nutritionLine);
+    const declaredAllergens = detectAllergens([ingredientsText, allergenText].filter(Boolean).join("\n"));
 
     return {
       product: {
@@ -208,7 +219,7 @@ async function buildDraftFromFiles(files) {
         text: ingredientsText,
       },
       allergens: {
-        declared: detectAllergens(ingredientsText),
+        declared: declaredAllergens,
       },
       nutrition: {
         energyKj: nutrition.energyKj,
@@ -223,7 +234,7 @@ async function buildDraftFromFiles(files) {
       confidence: {
         product: 0.83,
         ingredients: ingredientsText ? 0.9 : draftStub.confidence.ingredients,
-        allergens: ingredientsText ? 0.72 : draftStub.confidence.allergens,
+        allergens: allergenText || ingredientsText ? 0.72 : draftStub.confidence.allergens,
         nutrition: nutrition.energyKj != null ? 0.88 : draftStub.confidence.nutrition,
       },
       missingFields: buildMissingFields({ articleNumber, category, ean, countryOfOrigin, packaging, netWeight, storage, nutrition }),
@@ -296,7 +307,7 @@ function paragraphAfterHeading(lines, heading) {
 
 function extractLabeledValues(text, labels) {
   const escapedLabels = labels.map((label) => escapeRegex(label)).join("|");
-  const regex = new RegExp(`(^|\\n)\\s*(${escapedLabels})\\s*:\\s*`, "g");
+  const regex = new RegExp(`(^|\\n|\\s)(${escapedLabels})\\s*:\\s*`, "g");
   const matches = Array.from(text.matchAll(regex));
   const values = {};
 
@@ -367,20 +378,25 @@ function extractNumber(line, pattern) {
 }
 
 function detectAllergens(ingredientsText) {
-  const lower = ingredientsText.toLowerCase();
-  const allergens = [];
+  const normalized = normalizeExtractedText(ingredientsText).toLowerCase();
+  const allergenPatterns = [
+    { label: "Gluten", pattern: /gluten|spannmal|vete|rag|korn|havre/ },
+    { label: "Kräftdjur", pattern: /kraftdjur|raka|rakor|krabba|hummer/ },
+    { label: "Ägg", pattern: /agg/ },
+    { label: "Fisk", pattern: /fisk/ },
+    { label: "Jordnötter", pattern: /jordnot|peanut/ },
+    { label: "Soja", pattern: /soja/ },
+    { label: "Mjölk", pattern: /mjolk|laktos|vassle|kasein|gradd?e?/ },
+    { label: "Nötter", pattern: /notter|hasselnot|mandel|valnot|cashew|pistage|pekan|macadamia/ },
+    { label: "Selleri", pattern: /selleri/ },
+    { label: "Senap", pattern: /senap/ },
+    { label: "Sesamfrön", pattern: /sesam/ },
+    { label: "Svaveldioxid", pattern: /svaveldioxid|sulfit/ },
+    { label: "Lupin", pattern: /lupin/ },
+    { label: "Blötdjur", pattern: /blotdjur|mussla|musslor|ostra|ostron|squid|blackfisk|blackfisk/ },
+  ];
 
-  if (lower.includes("mjolk")) {
-    allergens.push("milk");
-  }
-  if (lower.includes("soja")) {
-    allergens.push("soy");
-  }
-  if (lower.includes("gluten")) {
-    allergens.push("gluten");
-  }
-
-  return allergens;
+  return allergenPatterns.filter(({ pattern }) => pattern.test(normalized)).map(({ label }) => label);
 }
 
 function buildMissingFields({ articleNumber, category, ean, countryOfOrigin, packaging, netWeight, storage, nutrition }) {
