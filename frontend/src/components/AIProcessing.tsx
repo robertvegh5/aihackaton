@@ -1,9 +1,13 @@
 import { useEffect, useState } from "react";
 import { motion } from "motion/react";
-import { FileText, FileSpreadsheet, Cpu, CheckCircle2, ArrowRight } from "lucide-react";
+import { FileText, FileSpreadsheet, Cpu, CheckCircle2, ArrowLeft } from "lucide-react";
+import type { UploadedFile } from "../App";
 
 interface AIProcessingProps {
-  onNext: () => void;
+  files: UploadedFile[];
+  onProcess: () => Promise<boolean>;
+  processingError: string | null;
+  onComplete: () => void;
   onBack: () => void;
 }
 
@@ -18,30 +22,43 @@ const STEPS = [
   { id: 8, label: "Genererar artikelutkast", detail: "Satter samman komplett artikelprofil", duration: 800 },
 ];
 
-export function AIProcessing({ onNext, onBack }: AIProcessingProps) {
+export function AIProcessing({ files, onProcess, processingError, onComplete, onBack }: AIProcessingProps) {
   const [currentStep, setCurrentStep] = useState(0);
   const [done, setDone] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
     let totalDelay = 0;
     const timeouts: number[] = [];
 
-    STEPS.forEach((step, index) => {
-      totalDelay += step.duration;
-      timeouts.push(
-        window.setTimeout(() => {
-          setCurrentStep(index + 1);
-          if (index === STEPS.length - 1) {
-            timeouts.push(window.setTimeout(() => setDone(true), 400));
-          }
-        }, totalDelay),
-      );
+    void onProcess().then((success) => {
+      if (!success || cancelled) {
+        return;
+      }
+
+      STEPS.forEach((step, index) => {
+        totalDelay += step.duration;
+        timeouts.push(
+          window.setTimeout(() => {
+            setCurrentStep(index + 1);
+            if (index === STEPS.length - 1) {
+              timeouts.push(
+                window.setTimeout(() => {
+                  setDone(true);
+                  onComplete();
+                }, 400),
+              );
+            }
+          }, totalDelay),
+        );
+      });
     });
 
     return () => {
+      cancelled = true;
       timeouts.forEach((timeout) => window.clearTimeout(timeout));
     };
-  }, []);
+  }, [onComplete, onProcess]);
 
   const progress = Math.round((currentStep / STEPS.length) * 100);
 
@@ -52,36 +69,29 @@ export function AIProcessing({ onNext, onBack }: AIProcessingProps) {
           <span
             style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "11px", fontWeight: 500, letterSpacing: "0.08em" }}
           >
-            PAR 2 - AI-EXTRAKTION
+            AI-ANALYS PAGAAR
           </span>
         </div>
-        <h1 style={{ color: "var(--ms-green)" }}>AI extraherar artikeldata</h1>
+        <h1 style={{ color: "var(--ms-green)" }}>AI analyserar uppladdade filer</h1>
         <p className="mt-1" style={{ color: "var(--muted-foreground)", fontSize: "15px" }}>
-          Automatisk extraktion av strukturerad produktdata fran uppladdade dokument.
+          Du kommer vidare till steg 2 automatiskt nar analysen ar klar.
         </p>
       </div>
 
       <div className="flex flex-1 flex-col items-center justify-start gap-8 overflow-y-auto px-8 py-8">
         <div className="w-full max-w-xl overflow-hidden rounded-2xl" style={{ border: "1px solid var(--border)", background: "var(--card)" }}>
           <div className="flex items-center gap-4 border-b border-border p-5">
-            <div className="flex flex-1 items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg" style={{ background: "rgba(192,57,43,0.1)" }}>
-                <FileText size={18} style={{ color: "#c0392b" }} />
+            {files.slice(0, 2).map((file) => (
+              <div key={file.id} className="flex flex-1 items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg" style={{ background: file.type === "pdf" ? "rgba(192,57,43,0.1)" : "rgba(27,58,45,0.1)" }}>
+                  {file.type === "pdf" ? <FileText size={18} style={{ color: "#c0392b" }} /> : <FileSpreadsheet size={18} style={{ color: "var(--ms-green)" }} />}
+                </div>
+                <div>
+                  <p style={{ fontSize: "12px", fontWeight: 600, color: "var(--foreground)" }}>{file.name}</p>
+                  <p style={{ fontSize: "11px", color: "var(--muted-foreground)" }}>{formatFileSize(file.size)} · {file.type.toUpperCase()}</p>
+                </div>
               </div>
-              <div>
-                <p style={{ fontSize: "12px", fontWeight: 600, color: "var(--foreground)" }}>Produktblad_Oatly_2024.pdf</p>
-                <p style={{ fontSize: "11px", color: "var(--muted-foreground)" }}>2.4 MB · 8 sidor</p>
-              </div>
-            </div>
-            <div className="flex flex-1 items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg" style={{ background: "rgba(27,58,45,0.1)" }}>
-                <FileSpreadsheet size={18} style={{ color: "var(--ms-green)" }} />
-              </div>
-              <div>
-                <p style={{ fontSize: "12px", fontWeight: 600, color: "var(--foreground)" }}>Artikeldata_Q4.xlsx</p>
-                <p style={{ fontSize: "11px", color: "var(--muted-foreground)" }}>148 KB · 1 ark</p>
-              </div>
-            </div>
+            ))}
             <div
               className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg"
               style={{ background: done ? "rgba(45,106,79,0.1)" : "rgba(27,58,45,0.06)" }}
@@ -147,6 +157,12 @@ export function AIProcessing({ onNext, onBack }: AIProcessingProps) {
               );
             })}
           </div>
+
+          {processingError && (
+            <div className="border-t border-border px-5 py-4" style={{ background: "rgba(192,57,43,0.08)", color: "var(--ms-status-error)" }}>
+              <p style={{ fontSize: "13px", lineHeight: 1.5 }}>{processingError}</p>
+            </div>
+          )}
         </div>
 
         {done && (
@@ -175,27 +191,28 @@ export function AIProcessing({ onNext, onBack }: AIProcessingProps) {
       <div className="flex items-center justify-between border-t border-border px-8 py-5" style={{ background: "var(--card)" }}>
         <button
           onClick={onBack}
-          className="rounded-lg px-4 py-2 transition-all hover:bg-muted"
+          disabled={done}
+          className="flex items-center gap-2 rounded-lg px-4 py-2 transition-all hover:bg-muted"
           style={{ fontSize: "14px", color: "var(--muted-foreground)" }}
         >
-          Tillbaka
+          <ArrowLeft size={16} /> Tillbaka
         </button>
-        <button
-          onClick={onNext}
-          disabled={!done}
-          className="flex items-center gap-2 rounded-lg px-5 py-2.5 transition-all"
-          style={{
-            background: done ? "var(--ms-green)" : "var(--muted)",
-            color: done ? "#fff" : "var(--muted-foreground)",
-            fontWeight: 600,
-            fontSize: "14px",
-            cursor: done ? "pointer" : "not-allowed",
-            opacity: done ? 1 : 0.7,
-          }}
-        >
-          Granska AI-utkast <ArrowRight size={16} />
-        </button>
+        <p style={{ fontSize: "13px", color: "var(--muted-foreground)" }}>
+          {done ? "Analysen ar klar. Du skickas vidare till steg 2." : "Vanta tills analysen ar klar for att fortsatta."}
+        </p>
       </div>
     </div>
   );
+}
+
+function formatFileSize(sizeInBytes: number) {
+  if (sizeInBytes >= 1024 * 1024) {
+    return `${(sizeInBytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
+  if (sizeInBytes >= 1024) {
+    return `${Math.round(sizeInBytes / 1024)} KB`;
+  }
+
+  return `${sizeInBytes} B`;
 }

@@ -55,7 +55,7 @@ export function ValidationIssues({ onSelectIssue, onNext, onBack }: ValidationIs
               Har ser du vad som maste justeras innan artikeln kan skickas vidare.
             </p>
             <p className="mt-2" style={{ color: "var(--ms-green-mid)", fontSize: "12px", fontWeight: 600 }}>
-              Klicka pa ett problem for att hoppa direkt till ratt falt i utkastet.
+              Klicka pa ett problem for att hoppa direkt till ratt falt i steg 2.
             </p>
           </div>
           <div className="flex flex-shrink-0 gap-2">
@@ -118,7 +118,7 @@ export function ValidationIssues({ onSelectIssue, onNext, onBack }: ValidationIs
                 <InfoRow label="Blockerande problem" value={String(blocking.length)} valueColor="var(--ms-status-error)" />
                 <InfoRow label="Varningar" value={String(warnings.length)} />
                 <InfoRow label="Mest kritisk sektion" value="Naringsvarden" />
-                <InfoRow label="Nasta steg" value="Ratta i utkastet" />
+                <InfoRow label="Nasta steg" value="Ratta i steg 2" />
               </div>
             </div>
           </div>

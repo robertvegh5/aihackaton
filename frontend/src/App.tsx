@@ -2,7 +2,6 @@ import { useState } from "react";
 import { SupplierUpload } from "./components/SupplierUpload";
 import { SupplierForm } from "./components/SupplierForm";
 import { AIProcessing } from "./components/AIProcessing";
-import { AIDraftReview } from "./components/AIDraftReview";
 import { ValidationIssues } from "./components/ValidationIssues";
 import { InternalReview } from "./components/InternalReview";
 
@@ -75,38 +74,14 @@ type Screen =
   | "supplier-upload"
   | "supplier-form"
   | "ai-processing"
-  | "ai-draft"
   | "validation"
   | "internal-review";
 
-const PAIRS = [
-  {
-    id: "pair1",
-    label: "Par 1",
-    sublabel: "Leverantorsflode",
-    screens: [
-      { id: "supplier-upload" as Screen, label: "1A · Uppladdning" },
-      { id: "supplier-form" as Screen, label: "1B · Artikelformular" },
-    ],
-  },
-  {
-    id: "pair2",
-    label: "Par 2",
-    sublabel: "AI-extraktion",
-    screens: [
-      { id: "ai-processing" as Screen, label: "2A · Bearbetning" },
-      { id: "ai-draft" as Screen, label: "2B · Utkastgranskning" },
-    ],
-  },
-  {
-    id: "pair3",
-    label: "Par 3",
-    sublabel: "Validering och granskning",
-    screens: [
-      { id: "validation" as Screen, label: "3A · Valideringsproblem" },
-      { id: "internal-review" as Screen, label: "3B · Intern granskning" },
-    ],
-  },
+const FLOW_STEPS = [
+  { id: "supplier-upload" as Screen, label: "1", sublabel: "Underlag" },
+  { id: "supplier-form" as Screen, label: "2", sublabel: "Verifiera" },
+  { id: "validation" as Screen, label: "3A", sublabel: "Validering" },
+  { id: "internal-review" as Screen, label: "3B", sublabel: "Intern granskning" },
 ];
 
 export function App() {
@@ -116,65 +91,83 @@ export function App() {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isExtracting, setIsExtracting] = useState(false);
   const [articleDraft, setArticleDraft] = useState<ArticleDraft | null>(null);
-  const [draftFocusTarget, setDraftFocusTarget] = useState<string | null>(null);
+  const [formFocusTarget, setFormFocusTarget] = useState<string | null>(null);
+  const [step2Available, setStep2Available] = useState(false);
+  const [step3Available, setStep3Available] = useState(false);
 
-  const nav = (nextScreen: Screen) => setScreen(nextScreen);
-  const openDraftAtField = (field: string) => {
-    setDraftFocusTarget(field);
-    nav("ai-draft");
-  };
-
-  const handleGoToSupplierForm = async () => {
-    if (uploadMode === "upload" && uploadedFiles.length === 0) {
+  const nav = (nextScreen: Screen) => {
+    if (!screenEnabled[nextScreen]) {
       return;
     }
 
+    setScreen(nextScreen);
+  };
+  const openDraftAtField = (field: string) => {
+    setFormFocusTarget(ISSUE_FIELD_TO_FORM_TARGET[field] ?? field);
+    nav("supplier-form");
+  };
+
+  const screenEnabled: Record<Screen, boolean> = {
+    "supplier-upload": true,
+    "supplier-form": step2Available,
+    "ai-processing": false,
+    validation: step3Available,
+    "internal-review": step3Available,
+  };
+
+  const handleStartFlow = () => {
+    if (uploadMode === "manual") {
+      setArticleDraft(null);
+      setUploadError(null);
+      setStep2Available(true);
+      setScreen("supplier-form");
+      return;
+    }
+
+    if (uploadedFiles.length === 0) {
+      return;
+    }
+
+    setUploadError(null);
+    setScreen("ai-processing");
+  };
+
+  const handleProcessUpload = async () => {
     setIsExtracting(true);
     setUploadError(null);
 
     try {
-      if (uploadMode === "upload") {
-        const formData = new FormData();
-        formData.append("mode", uploadMode);
-        formData.append("scenarioId", "scenario-b");
-        uploadedFiles.forEach((uploadedFile) => {
-          formData.append("files", uploadedFile.file, uploadedFile.name);
-        });
+      const formData = new FormData();
+      formData.append("mode", uploadMode);
+      formData.append("scenarioId", "scenario-b");
+      uploadedFiles.forEach((uploadedFile) => {
+        formData.append("files", uploadedFile.file, uploadedFile.name);
+      });
 
-        const response = await fetch("/api/extract", {
-          method: "POST",
-          body: formData,
-        });
+      const response = await fetch("/api/extract", {
+        method: "POST",
+        body: formData,
+      });
 
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
-        }
-
-        const data = (await response.json()) as { articleDraft: ArticleDraft };
-        setArticleDraft(data.articleDraft);
-      } else {
-        const response = await fetch("/api/extract", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ mode: uploadMode, scenarioId: "scenario-a" }),
-        });
-
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
-        }
-
-        const data = (await response.json()) as { articleDraft: ArticleDraft };
-        setArticleDraft(data.articleDraft);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
       }
 
-      nav("supplier-form");
+      const data = (await response.json()) as { articleDraft: ArticleDraft };
+      setArticleDraft(data.articleDraft);
+      setStep2Available(true);
+      return true;
     } catch (error) {
       setUploadError(error instanceof Error ? `Kunde inte starta extraktion: ${error.message}` : "Kunde inte starta extraktion.");
+      return false;
     } finally {
       setIsExtracting(false);
     }
+  };
+
+  const handleValidationStart = () => {
+    setStep3Available(true);
+    setScreen("validation");
   };
 
   return (
@@ -212,29 +205,23 @@ export function App() {
         </div>
 
         <div className="flex items-center gap-1">
-          {PAIRS.map((pair) => (
-            <div key={pair.id} className="flex items-center gap-0.5">
-              {pair.screens.map((pairScreen) => (
-                <button
-                  key={pairScreen.id}
-                  onClick={() => nav(pairScreen.id)}
-                  className="rounded-md px-3 py-1.5 transition-all"
-                  style={{
-                    background: screen === pairScreen.id ? "rgba(255,255,255,0.18)" : "transparent",
-                    color: screen === pairScreen.id ? "#fff" : "rgba(255,255,255,0.6)",
-                    fontSize: "12px",
-                    fontWeight: screen === pairScreen.id ? 600 : 400,
-                    border:
-                      screen === pairScreen.id
-                        ? "1px solid rgba(255,255,255,0.2)"
-                        : "1px solid transparent",
-                  }}
-                >
-                  {pairScreen.label}
-                </button>
-              ))}
-              <div className="mx-1 h-4 w-px opacity-20" style={{ background: "#fff" }} />
-            </div>
+          {FLOW_STEPS.map((step) => (
+            <button
+              key={step.id}
+              onClick={() => nav(step.id)}
+              disabled={!screenEnabled[step.id]}
+              className="rounded-md px-3 py-1.5 transition-all"
+              style={{
+                background: screen === step.id ? "rgba(255,255,255,0.18)" : "transparent",
+                color: screen === step.id ? "#fff" : screenEnabled[step.id] ? "rgba(255,255,255,0.6)" : "rgba(255,255,255,0.3)",
+                fontSize: "12px",
+                fontWeight: screen === step.id ? 600 : 400,
+                border: screen === step.id ? "1px solid rgba(255,255,255,0.2)" : "1px solid transparent",
+                cursor: screenEnabled[step.id] ? "pointer" : "not-allowed",
+              }}
+            >
+              {step.label}
+            </button>
           ))}
         </div>
 
@@ -252,13 +239,15 @@ export function App() {
       </header>
 
       <div className="flex flex-shrink-0 items-center gap-6 border-b border-border px-8 py-2" style={{ background: "var(--card)" }}>
-        {PAIRS.map((pair) => {
-          const active = pair.screens.some((pairScreen) => pairScreen.id === screen);
+        {FLOW_STEPS.map((step) => {
+          const active = step.id === screen;
           return (
             <button
-              key={pair.id}
-              onClick={() => nav(pair.screens[0].id)}
+              key={step.id}
+              onClick={() => nav(step.id)}
+              disabled={!screenEnabled[step.id]}
               className="flex items-center gap-2 transition-all"
+              style={{ opacity: screenEnabled[step.id] ? 1 : 0.5, cursor: screenEnabled[step.id] ? "pointer" : "not-allowed" }}
             >
               <div className="h-1.5 w-1.5 rounded-full" style={{ background: active ? "var(--ms-amber)" : "var(--border)" }} />
               <span
@@ -268,7 +257,7 @@ export function App() {
                   color: active ? "var(--ms-green)" : "var(--muted-foreground)",
                 }}
               >
-                {pair.label}: {pair.sublabel}
+                {step.label}: {step.sublabel}
               </span>
             </button>
           );
@@ -294,7 +283,7 @@ export function App() {
             isSubmitting={isExtracting}
             onModeChange={setUploadMode}
             onFilesChange={setUploadedFiles}
-            onNext={handleGoToSupplierForm}
+            onNext={handleStartFlow}
           />
         )}
         {screen === "supplier-form" && (
@@ -302,19 +291,19 @@ export function App() {
             articleDraft={articleDraft}
             uploadedFiles={uploadedFiles}
             uploadMode={uploadMode}
-            onNext={() => nav("ai-processing")}
+            focusTarget={formFocusTarget}
+            onFocusTargetHandled={() => setFormFocusTarget(null)}
+            onNext={handleValidationStart}
             onBack={() => nav("supplier-upload")}
           />
         )}
         {screen === "ai-processing" && (
-          <AIProcessing onNext={() => nav("ai-draft")} onBack={() => nav("supplier-form")} />
-        )}
-        {screen === "ai-draft" && (
-          <AIDraftReview
-            focusTarget={draftFocusTarget}
-            onFocusTargetHandled={() => setDraftFocusTarget(null)}
-            onNext={() => nav("validation")}
-            onBack={() => nav("ai-processing")}
+          <AIProcessing
+            files={uploadedFiles}
+            onProcess={handleProcessUpload}
+            processingError={uploadError}
+            onComplete={() => setScreen("supplier-form")}
+            onBack={() => nav("supplier-upload")}
           />
         )}
         {screen === "validation" && (
@@ -325,3 +314,14 @@ export function App() {
     </div>
   );
 }
+
+const ISSUE_FIELD_TO_FORM_TARGET: Record<string, string> = {
+  "EAN-13": "ean",
+  "Kalcium (mg)": "calcium",
+  "GLN (leverantor)": "supplierGln",
+  "Innehaller soja": "section:allergens",
+  Produktkategori: "category",
+  "Kolli per forpackning": "casesPerPackage",
+  Produktbild: "section:media",
+  Ursprungsland: "countryOfOrigin",
+};
