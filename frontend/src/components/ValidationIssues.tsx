@@ -33,10 +33,10 @@ export function ValidationIssues({ issues, blockingCount, warningCount, onSelect
           <div>
             <h1 style={{ color: "var(--ms-green)" }}>Valideringsresultat</h1>
             <p className="mt-1" style={{ color: "var(--muted-foreground)", fontSize: "15px" }}>
-              Har ser du vad som maste justeras innan artikeln kan skickas vidare.
+              Här ser du vad som måste justeras innan artikeln kan skickas vidare.
             </p>
             <p className="mt-2" style={{ color: "var(--ms-green-mid)", fontSize: "12px", fontWeight: 600 }}>
-              Klicka pa ett problem for att hoppa direkt till ratt falt i steg 2.
+              Klicka på ett problem för att hoppa direkt till rätt fält i steg 2.
             </p>
           </div>
           <div className="flex flex-shrink-0 gap-2">
@@ -98,8 +98,8 @@ export function ValidationIssues({ issues, blockingCount, warningCount, onSelect
               <div className="flex flex-col gap-2">
                 <InfoRow label="Blockerande problem" value={String(blockingCount)} valueColor="var(--ms-status-error)" />
                 <InfoRow label="Varningar" value={String(warningCount)} />
-                <InfoRow label="Mest kritisk sektion" value="Naringsvarden" />
-                <InfoRow label="Nasta steg" value="Ratta i steg 2" />
+                <InfoRow label="Mest kritisk sektion" value="Näringsvärden" />
+                <InfoRow label="Nästa steg" value={canSubmit ? "Skicka in artikel" : "Rätta i steg 2"} />
               </div>
             </div>
           </div>
@@ -111,7 +111,7 @@ export function ValidationIssues({ issues, blockingCount, warningCount, onSelect
           <ArrowLeft size={16} /> Tillbaka
         </button>
         <div className="flex items-center gap-3">
-          {!canSubmit && <p style={{ fontSize: "13px", color: "var(--ms-status-error)" }}>{blockingCount} saker maste andras innan du kan ga vidare</p>}
+          {!canSubmit && <p style={{ fontSize: "13px", color: "var(--ms-status-error)" }}>{blockingCount} saker måste ändras innan du kan gå vidare</p>}
           <button
             onClick={onNext}
             disabled={!canSubmit}
@@ -125,7 +125,7 @@ export function ValidationIssues({ issues, blockingCount, warningCount, onSelect
               opacity: canSubmit ? 1 : 0.6,
             }}
           >
-            Skicka till intern granskning <ArrowRight size={16} />
+            Skicka in artikel <ArrowRight size={16} />
           </button>
         </div>
       </div>
@@ -156,7 +156,7 @@ function IssueButton({
         </div>
         <p style={{ fontSize: "13px", fontWeight: 500, color: "var(--foreground)", marginTop: "1px" }}>{issue.title}</p>
         <p style={{ fontSize: "12px", color: "var(--muted-foreground)", marginTop: "2px" }}>{issue.section} · {issue.field}</p>
-        <p style={{ fontSize: "12px", color: config.color, marginTop: "6px", fontWeight: 600 }}>Oppna i utkastet</p>
+        <p style={{ fontSize: "12px", color: config.color, marginTop: "6px", fontWeight: 600 }}>Öppna i utkastet</p>
       </div>
     </button>
   );

@@ -69,7 +69,7 @@ export function SupplierUpload({ mode, files, error, isSubmitting, onModeChange,
     });
 
     if (rejectedFiles.length > 0) {
-      setUploadError(`Filerna kunde inte laddas upp: ${rejectedFiles.join(", ")}. Tillatna filer ar PDF, XLSX, CSV, DOCX och bilder upp till 25 MB.`);
+      setUploadError(`Filerna kunde inte laddas upp: ${rejectedFiles.join(", ")}. Tillåtna filer är PDF, XLSX, CSV, DOCX och bilder upp till 25 MB.`);
     } else {
       setUploadError(null);
     }
@@ -108,7 +108,7 @@ export function SupplierUpload({ mode, files, error, isSubmitting, onModeChange,
         </div>
         <h1 style={{ color: "var(--ms-green)" }}>Ladda upp artikelunderlag</h1>
         <p className="mt-1" style={{ color: "var(--muted-foreground)", fontSize: "15px" }}>
-          Ladda upp produktblad, specifikationer eller befintlig artikeldata. Du kan ocksa hoppa over detta och fylla i uppgifterna manuellt.
+          Ladda upp produktblad, specifikationer eller befintlig artikeldata. Du kan också hoppa över detta och fylla i uppgifterna manuellt.
         </p>
       </div>
 
@@ -166,8 +166,8 @@ export function SupplierUpload({ mode, files, error, isSubmitting, onModeChange,
                   <Upload size={22} style={{ color: "var(--ms-green)" }} />
                 </div>
                 <div>
-                  <p style={{ fontWeight: 600, color: "var(--foreground)", fontSize: "15px" }}>Dra och slapp filer har</p>
-                  <p style={{ color: "var(--muted-foreground)", fontSize: "13px", marginTop: "4px" }}>eller klicka for att bladdra</p>
+                  <p style={{ fontWeight: 600, color: "var(--foreground)", fontSize: "15px" }}>Dra och släpp filer här</p>
+                  <p style={{ color: "var(--muted-foreground)", fontSize: "13px", marginTop: "4px" }}>eller klicka för att bläddra</p>
                 </div>
                 <p style={{ fontSize: "12px", color: "var(--muted-foreground)", fontFamily: "'JetBrains Mono', monospace" }}>
                   PDF · XLSX · CSV · DOCX - max 25 MB per fil
@@ -231,15 +231,15 @@ export function SupplierUpload({ mode, files, error, isSubmitting, onModeChange,
             >
               <Info size={16} style={{ color: "var(--ms-green)", flexShrink: 0, marginTop: "2px" }} />
               <p style={{ fontSize: "13px", color: "var(--ms-green-mid)" }}>
-                AI:n extraherar automatiskt artikelnamn, EAN, vikt, ingredienser, naringsvarden och allergener fran dina uppladdade dokument.
+                AI:n extraherar automatiskt artikelnamn, EAN, vikt, ingredienser, näringsvärden och allergener från dina uppladdade dokument.
               </p>
             </div>
           </>
         ) : (
           <div className="rounded-xl p-6 text-center" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
-            <p style={{ color: "var(--muted-foreground)", fontSize: "14px" }}>Manuellt inmatningslage - inga filer kravs</p>
+            <p style={{ color: "var(--muted-foreground)", fontSize: "14px" }}>Manuellt inmatningsläge - inga filer krävs</p>
             <p style={{ color: "var(--muted-foreground)", fontSize: "13px", marginTop: "4px" }}>
-              Du fyller i all artikeldata direkt i formularet i nasta steg.
+              Du fyller i all artikeldata direkt i formuläret i nästa steg.
             </p>
           </div>
         )}
@@ -248,10 +248,10 @@ export function SupplierUpload({ mode, files, error, isSubmitting, onModeChange,
       <div className="flex items-center justify-between border-t border-border px-8 py-5" style={{ background: "var(--card)" }}>
         <p style={{ fontSize: "13px", color: "var(--muted-foreground)" }}>
           {mode === "manual"
-            ? "Manuellt inmatningslage valt"
+            ? "Manuellt inmatningsläge valt"
             : files.length > 0
-              ? `${files.length} filer redo for AI-extraktion`
-              : "Ladda upp minst en fil for att fortsatta"}
+              ? `${files.length} filer redo för AI-extraktion`
+              : "Ladda upp minst en fil för att fortsätta"}
         </p>
         <button
           onClick={onNext}
@@ -266,7 +266,7 @@ export function SupplierUpload({ mode, files, error, isSubmitting, onModeChange,
             opacity: canContinue && !isSubmitting ? 1 : 0.7,
           }}
         >
-          {isSubmitting ? "Bearbetar..." : mode === "manual" ? "Ga till steg 2" : "Analysera med AI"}
+          {isSubmitting ? "Bearbetar..." : mode === "manual" ? "Gå till steg 2" : "Analysera med AI"}
           <ArrowRight size={16} />
         </button>
       </div>

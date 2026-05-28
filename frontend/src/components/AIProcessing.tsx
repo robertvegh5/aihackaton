@@ -14,12 +14,12 @@ interface AIProcessingProps {
 
 const STEPS = [
   { id: 1, label: "Laser in dokument", detail: "Oatly_Produktblad_2024.pdf", duration: 1200 },
-  { id: 2, label: "OCR och textextraktion", detail: "Identifierar strukturerade falt", duration: 1700 },
+  { id: 2, label: "OCR och textextraktion", detail: "Identifierar strukturerade fält", duration: 1700 },
   { id: 3, label: "Extraherar grunduppgifter", detail: "Artikelnamn, EAN, varumarke, kategori...", duration: 1400 },
   { id: 4, label: "Extraherar naringsvarden", detail: "Energi, fett, kolhydrater, protein, salt...", duration: 1500 },
   { id: 5, label: "Identifierar allergener", detail: "Genomsoker ingredienslista och markning", duration: 1000 },
-  { id: 6, label: "Kartlagger logistikdata", detail: "Hallbarhet, ursprung, forpackningsmatt", duration: 1200 },
-  { id: 7, label: "Validerar extraherade falt", detail: "Kontrollerar format och tackning", duration: 900 },
+  { id: 6, label: "Kartlägger logistikdata", detail: "Hållbarhet, ursprung, förpackningsmått", duration: 1200 },
+  { id: 7, label: "Validerar extraherade fält", detail: "Kontrollerar format och täckning", duration: 900 },
   { id: 8, label: "Genererar artikelutkast", detail: "Satter samman komplett artikelprofil", duration: 700 },
 ];
 
@@ -88,7 +88,7 @@ export function AIProcessing({ files, articleDraft, onProcess, processingError, 
         </div>
         <h1 style={{ color: "var(--ms-green)" }}>AI analyserar uppladdade filer</h1>
         <p className="mt-1" style={{ color: "var(--muted-foreground)", fontSize: "15px" }}>
-          Laddningen visas i cirka 5 sekunder och hoppar sedan automatiskt vidare till artikelformularet.
+          Bearbetningen visas i cirka 5 sekunder och hoppar sedan automatiskt vidare till artikelformuläret.
         </p>
       </div>
 
@@ -190,7 +190,7 @@ export function AIProcessing({ files, articleDraft, onProcess, processingError, 
               {
                 label: "Falt extraherade",
                 value: String(Math.max(0, 11 - articleDraft.missingFields.length)),
-                sub: "i article-draft",
+                sub: "i artikelutkastet",
               },
               {
                 label: "AI-konfidenspoang",
@@ -198,7 +198,7 @@ export function AIProcessing({ files, articleDraft, onProcess, processingError, 
                 sub: "genomsnitt",
               },
               {
-                label: "Saknade falt",
+                label: "Saknade fält",
                 value: String(articleDraft.missingFields.length),
                 sub: "kraver granskning",
               },
@@ -228,7 +228,7 @@ export function AIProcessing({ files, articleDraft, onProcess, processingError, 
           <ArrowLeft size={16} /> Tillbaka
         </button>
         <p style={{ fontSize: "13px", color: "var(--muted-foreground)" }}>
-          {done ? "Analysen ar klar. Du skickas vidare till artikelformularet." : "AI-bearbetning pagar. Du skickas vidare automatiskt efter cirka 5 sekunder."}
+          {done ? "Analysen är klar. Du skickas vidare till artikelformuläret." : "AI-bearbetning pågår. Du skickas vidare automatiskt efter cirka 5 sekunder."}
         </p>
       </div>
     </div>

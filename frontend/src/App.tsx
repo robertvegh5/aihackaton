@@ -88,59 +88,33 @@ type Screen =
   | "ai-processing"
   | "ai-draft"
   | "validation"
+  | "supplier-complete"
   | "internal-review";
 
 type PortalMode = "landing" | "supplier" | "internal";
 
-const PAIRS = [
-  {
-    id: "pair1",
-    label: "Par 1",
-    sublabel: "Leverantorsflode",
-    screens: [{ id: "supplier-upload" as Screen, label: "Uppladdning" }],
-  },
-  {
-    id: "pair2",
-    label: "Par 2",
-    sublabel: "AI-extraktion",
-    screens: [
-      { id: "ai-processing" as Screen, label: "Bearbetning" },
-      { id: "supplier-form" as Screen, label: "Artikelformular" },
-    ],
-  },
-  {
-    id: "pair3",
-    label: "Par 3",
-    sublabel: "Validering och granskning",
-    screens: [
-      { id: "validation" as Screen, label: "3A · Valideringsproblem" },
-      { id: "internal-review" as Screen, label: "3B · Intern granskning" },
-    ],
-  },
-];
-
 const HEADER_NAV_ITEMS: Array<{ id: Screen; label: string }> = [
   { id: "supplier-upload", label: "Uppladdning" },
-  { id: "ai-processing", label: "Bearbetning" },
-  { id: "supplier-form", label: "Artikelformular" },
-  { id: "validation", label: "Valideringsproblem" },
+  { id: "supplier-form", label: "Artikelformulär" },
+  { id: "validation", label: "Validering" },
+  { id: "supplier-complete", label: "Klart" },
   { id: "internal-review", label: "Intern granskning" },
 ];
 
 const PORTAL_CARDS = [
   {
     id: "supplier",
-    badge: "Externt flode",
-    title: "Leverantor",
+    badge: "Externt flöde",
+    title: "Leverantör",
     subtitle: "Erik Lindqvist · Oatly AB",
-    description: "Ladda upp artikelunderlag, granska AI-utkast och atgarda valideringsproblem.",
+    description: "Ladda upp artikelunderlag, granska AI-utkast och åtgärda valideringsproblem.",
     steps: [
       "Ladda upp dokument",
       "Granska AI-extraktion",
-      "Atgarda valideringsproblem",
-      "Skicka for intern granskning",
+      "Åtgärda valideringsproblem",
+      "Skicka för intern granskning",
     ],
-    action: "Oppna portal",
+    action: "Öppna",
     accent: "var(--ms-green)",
     badgeColor: "var(--ms-green)",
     badgeBackground: "rgba(27,58,45,0.08)",
@@ -149,16 +123,16 @@ const PORTAL_CARDS = [
   },
   {
     id: "internal",
-    badge: "Internt flode",
+    badge: "Internt flöde",
     title: "Intern granskare",
     subtitle: "Anna Karlsson · Kategoriansvarig M&S",
-    description: "Oppna gamla 3B for att granska artikelko, AI-kvalitet och fatta beslut internt.",
+    description: "Granska inkomna artikelutkast, kontrollera kvaliteten och fatta beslut om godkännande, avvisning eller komplettering.",
     steps: [
-      "Oppna artikelko",
-      "Kontrollera AI-kvalitetspoang",
-      "Godkann eller avvisa artikel",
+      "Öppna inkomna artikelutkast",
+      "Kontrollera kvalitet och nyckeldata",
+      "Godkänn, avvisa eller begär komplettering",
     ],
-    action: "Oppna 3B",
+    action: "Öppna",
     accent: "var(--ms-amber)",
     badgeColor: "var(--ms-amber)",
     badgeBackground: "rgba(200,151,62,0.08)",
@@ -215,18 +189,19 @@ export function App() {
   const [step2Available, setStep2Available] = useState(false);
   const [step3Available, setStep3Available] = useState(false);
 
+  const step3Issues = formSubmission ? buildStep3Issues(formSubmission, articleDraft) : [];
+  const blockingIssues = step3Issues.filter((issue) => issue.severity === "blocking");
+  const warningIssues = step3Issues.filter((issue) => issue.severity === "warning");
+
   const screenEnabled: Record<Screen, boolean> = {
     "supplier-upload": portalMode === "supplier",
     "supplier-form": portalMode === "supplier" && step2Available,
     "ai-processing": portalMode === "supplier" && uploadMode === "upload" && uploadedFiles.length > 0,
     "ai-draft": false,
     validation: portalMode === "supplier" && step3Available,
-    "internal-review": portalMode === "supplier" ? step3Available : portalMode === "internal",
+    "supplier-complete": portalMode === "supplier" && step3Available && blockingIssues.length === 0,
+    "internal-review": portalMode === "internal",
   };
-
-  const step3Issues = formSubmission ? buildStep3Issues(formSubmission, articleDraft) : [];
-  const blockingIssues = step3Issues.filter((issue) => issue.severity === "blocking");
-  const warningIssues = step3Issues.filter((issue) => issue.severity === "warning");
 
   const nav = (nextScreen: Screen) => {
     if (!screenEnabled[nextScreen]) {
@@ -340,13 +315,21 @@ export function App() {
     setStep3Available(true);
   };
 
+  const handleSupplierComplete = () => {
+    setScreen("supplier-complete");
+  };
+
   if (portalMode === "landing") {
     return <PortalLandingPage onOpenSupplier={openSupplierPortal} onOpenInternal={openInternalPortal} />;
   }
 
   const userInitials = portalMode === "internal" ? "AK" : "EL";
   const userLabel = portalMode === "internal" ? "Anna Karlsson · Kategoriansvarig M&S" : "Erik Lindqvist · Oatly AB";
-  const portalLabel = portalMode === "internal" ? "Artikelportal - Intern" : "Artikelportal - Leverantor";
+  const portalLabel = portalMode === "internal" ? "Artikelportal - Intern" : "Artikelportal - Leverantör";
+  const headerNavItems =
+    portalMode === "internal"
+      ? []
+      : HEADER_NAV_ITEMS.filter((item) => item.id !== "internal-review");
 
   return (
     <div className="flex h-screen flex-col overflow-hidden" style={{ background: "var(--background)" }}>
@@ -383,7 +366,7 @@ export function App() {
         </div>
 
         <div className="flex items-center gap-1">
-          {HEADER_NAV_ITEMS.map((item) => {
+          {headerNavItems.map((item) => {
             const enabled = screenEnabled[item.id];
 
             return (
@@ -431,48 +414,6 @@ export function App() {
         </div>
       </header>
 
-      <div className="flex flex-shrink-0 items-center gap-6 border-b border-border px-8 py-2" style={{ background: "var(--card)" }}>
-        {PAIRS.map((pair) => {
-          const active = pair.screens.some((pairScreen) => pairScreen.id === screen);
-          const targetScreen = pair.screens.find((pairScreen) => screenEnabled[pairScreen.id])?.id;
-
-          return (
-            <button
-              key={pair.id}
-              onClick={() => {
-                if (targetScreen) {
-                  nav(targetScreen);
-                }
-              }}
-              disabled={!targetScreen}
-              className="flex items-center gap-2 transition-all"
-              style={{ opacity: targetScreen ? 1 : 0.5, cursor: targetScreen ? "pointer" : "not-allowed" }}
-            >
-              <div className="h-1.5 w-1.5 rounded-full" style={{ background: active ? "var(--ms-amber)" : "var(--border)" }} />
-              <span
-                style={{
-                  fontSize: "12px",
-                  fontWeight: active ? 700 : 500,
-                  color: active ? "var(--ms-green)" : "var(--muted-foreground)",
-                }}
-              >
-                {pair.label}: {pair.sublabel}
-              </span>
-            </button>
-          );
-        })}
-        <div className="flex-1" />
-        <div
-          className="flex items-center gap-2 rounded-full px-3 py-1"
-          style={{ background: "rgba(200,151,62,0.1)", border: "1px solid rgba(200,151,62,0.2)" }}
-        >
-          <div className="h-1.5 w-1.5 rounded-full" style={{ background: "var(--ms-amber)" }} />
-          <span style={{ fontSize: "11px", fontWeight: 600, color: "var(--ms-amber)" }}>
-            Proof of Concept - Martin &amp; Servera
-          </span>
-        </div>
-      </div>
-
       <main className="flex-1 overflow-hidden">
         {screen === "supplier-upload" && (
           <SupplierUpload
@@ -517,10 +458,11 @@ export function App() {
             blockingCount={blockingIssues.length}
             warningCount={warningIssues.length}
             onSelectIssue={openDraftAtField}
-            onNext={() => nav("internal-review")}
+            onNext={handleSupplierComplete}
             onBack={() => nav("supplier-form")}
           />
         )}
+        {screen === "supplier-complete" && <SupplierCompletionPage onReturnToLanding={returnToLanding} />}
         {screen === "internal-review" && (
           <InternalReview
             submission={formSubmission}
@@ -531,6 +473,47 @@ export function App() {
           />
         )}
       </main>
+    </div>
+  );
+}
+
+function SupplierCompletionPage({ onReturnToLanding }: { onReturnToLanding: () => void }) {
+  return (
+    <div className="flex h-full items-center justify-center px-6 py-10">
+      <div
+        className="w-full max-w-[640px] rounded-[28px] bg-card p-10 text-center"
+        style={{ border: "1px solid rgba(26,26,24,0.08)", boxShadow: "0 24px 70px rgba(27,58,45,0.08)" }}
+      >
+        <div
+          className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full"
+          style={{ background: "rgba(45,106,79,0.12)", color: "var(--ms-status-ok)", fontSize: "28px", fontWeight: 700 }}
+        >
+          ✓
+        </div>
+        <p
+          className="mb-3"
+          style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "11px", fontWeight: 600, letterSpacing: "0.08em", color: "var(--ms-amber)" }}
+        >
+          LEVERANTÖRSFLÖDE SLUTFÖRT
+        </p>
+        <h1 style={{ margin: 0, color: "var(--ms-green)", fontSize: "34px", lineHeight: 1.1, letterSpacing: "-0.04em" }}>
+          Tack, artikeln är inskickad
+        </h1>
+        <p className="mt-4" style={{ fontSize: "16px", lineHeight: 1.7, color: "var(--muted-foreground)" }}>
+          Din artikel är nu klar i leverantörsflödet och inväntar intern granskning hos Martin &amp; Servera.
+        </p>
+        <p className="mt-3" style={{ fontSize: "14px", lineHeight: 1.7, color: "var(--muted-foreground)" }}>
+          Du behöver inte göra något mer just nu. Vi återkommer om kompletteringar behövs.
+        </p>
+        <button
+          type="button"
+          onClick={onReturnToLanding}
+          className="mt-8 inline-flex items-center justify-center rounded-2xl px-5 py-3 transition-all hover:opacity-95"
+          style={{ background: "var(--ms-green)", color: "#fff", fontSize: "15px", fontWeight: 700, boxShadow: "0 14px 26px rgba(27,58,45,0.18)" }}
+        >
+          Till startsidan
+        </button>
+      </div>
     </div>
   );
 }
@@ -563,11 +546,8 @@ function PortalLandingPage({ onOpenSupplier, onOpenInternal }: { onOpenSupplier:
 
           <div className="max-w-[620px]">
             <h1 style={{ color: "var(--ms-green)", fontSize: "42px", lineHeight: 1.05, letterSpacing: "-0.05em", margin: 0 }}>
-              Valj ingang till artikelportalen
+              Välj ingång till artikelportalen
             </h1>
-            <p className="mt-4" style={{ fontSize: "16px", lineHeight: 1.7, color: "var(--muted-foreground)" }}>
-              Tva tydliga floden for samma app: ett for leverantorer som skickar in artikeldata och ett internt lage dar gamla 3B lever vidare.
-            </p>
           </div>
         </div>
 
@@ -579,7 +559,7 @@ function PortalLandingPage({ onOpenSupplier, onOpenInternal }: { onOpenSupplier:
             return (
               <section
                 key={card.id}
-                className="relative overflow-hidden rounded-[30px] bg-card p-8"
+                className="relative flex h-full flex-col overflow-hidden rounded-[30px] bg-card p-8"
                 style={{
                   border: "1px solid rgba(26,26,24,0.08)",
                   boxShadow: "0 24px 70px rgba(27,58,45,0.08)",
@@ -640,7 +620,7 @@ function PortalLandingPage({ onOpenSupplier, onOpenInternal }: { onOpenSupplier:
                 <button
                   type="button"
                   onClick={action}
-                  className="flex w-full items-center justify-center gap-2 rounded-2xl px-5 py-4 transition-all hover:opacity-95"
+                  className="mt-auto flex w-full items-center justify-center gap-2 rounded-2xl px-5 py-4 transition-all hover:opacity-95"
                   style={{
                     background: "var(--ms-green)",
                     color: "#fff",
@@ -667,10 +647,10 @@ function PortalLandingPage({ onOpenSupplier, onOpenInternal }: { onOpenSupplier:
 
 const ISSUE_FIELD_TO_FORM_TARGET: Record<string, string> = {
   "EAN-13": "ean",
-  "GLN (leverantor)": "supplierGln",
-  "Innehaller soja": "section:allergens",
+  "GLN (leverantör)": "supplierGln",
+  "Innehåller soja": "section:allergens",
   Produktkategori: "category",
-  "Kolli per forpackning": "casesPerPackage",
+  "Kolli per förpackning": "casesPerPackage",
   Produktbild: "section:media",
   Ursprungsland: "countryOfOrigin",
 };
@@ -691,7 +671,7 @@ function buildStep3Issues(submission: SupplierFormSubmission, articleDraft: Arti
       id: "v1",
       severity: "blocking",
       code: "VAL-101",
-      title: "EAN maste innehalla 13 siffror",
+      title: "EAN måste innehålla 13 siffror",
       detail: "Skriv in ett EAN-nummer med exakt 13 siffror i fältet EAN-13.",
       field: "EAN-13",
       section: "Grunduppgifter",
@@ -715,7 +695,7 @@ function buildStep3Issues(submission: SupplierFormSubmission, articleDraft: Arti
       id: "v3",
       severity: "blocking",
       code: "VAL-103",
-      title: "Varumarke saknas",
+      title: "Varumärke saknas",
       detail: "Fyll i varumärke i fältet Varumärke.",
       field: "brand",
       section: "Grunduppgifter",
@@ -739,10 +719,10 @@ function buildStep3Issues(submission: SupplierFormSubmission, articleDraft: Arti
       id: "v5",
       severity: "blocking",
       code: "VAL-204",
-      title: "Naringsvarden ar inte kompletta",
+      title: "Näringsvärden är inte kompletta",
       detail: "Fyll i Energi, Fett, Kolhydrater, Protein och Salt under Näringsvärden.",
       field: "section:nutrition",
-      section: "Naringsvarden",
+      section: "Näringsvärden",
     });
   }
 
@@ -751,9 +731,9 @@ function buildStep3Issues(submission: SupplierFormSubmission, articleDraft: Arti
       id: "v6",
       severity: "blocking",
       code: "VAL-301",
-      title: "GLN-nummer kravs",
+      title: "GLN-nummer krävs",
       detail: "Fyll i leverantörens GLN i fältet GLN (leverantör).",
-      field: "GLN (leverantor)",
+      field: "GLN (leverantör)",
       section: "Logistik",
     });
   }
@@ -763,10 +743,10 @@ function buildStep3Issues(submission: SupplierFormSubmission, articleDraft: Arti
       id: "v7",
       severity: "blocking",
       code: "VAL-302",
-      title: "Kolli per forpackning saknas",
+      title: "Kolli per förpackning saknas",
       detail: "Fyll i Kolli per förpackning under Förpackning och mått.",
-      field: "Kolli per forpackning",
-      section: "Forpackning och matt",
+      field: "Kolli per förpackning",
+      section: "Förpackning och mått",
     });
   }
 
@@ -778,7 +758,7 @@ function buildStep3Issues(submission: SupplierFormSubmission, articleDraft: Arti
       title: "Vikt per kolli saknas",
       detail: "Fyll i Vikt per kolli (kg) under Förpackning och mått.",
       field: "caseWeight",
-      section: "Forpackning och matt",
+      section: "Förpackning och mått",
     });
   }
 
@@ -801,7 +781,7 @@ function buildStep3Issues(submission: SupplierFormSubmission, articleDraft: Arti
       code: "VAL-402",
       title: "Kontrollera allergenmarkeringen for soja",
       detail: "Säkerställ att soja är markerad rätt i allergenlistan och i produkttexten.",
-      field: "Innehaller soja",
+      field: "Innehåller soja",
       section: "Allergener",
     });
   }

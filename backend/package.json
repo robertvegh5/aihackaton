@@ -11,6 +11,7 @@
   "dependencies": {
     "@ai-sdk/azure": "^3.0.67",
     "ai": "^6.0.191",
+    "dotenv": "^16.6.1",
     "express": "^4.21.1",
     "multer": "^2.1.1",
     "pdf-parse": "^2.4.5",

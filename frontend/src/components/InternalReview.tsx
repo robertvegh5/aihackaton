@@ -38,10 +38,10 @@ const STATUS_CONFIG: Record<
   ArticleStatus,
   { label: string; color: string; bg: string; border: string; icon: ElementType }
 > = {
-  pending_review: { label: "Vantar granskning", color: "var(--ms-amber)", bg: "rgba(200,151,62,0.1)", border: "rgba(200,151,62,0.25)", icon: Clock },
-  approved: { label: "Godkand", color: "var(--ms-status-ok)", bg: "rgba(45,106,79,0.08)", border: "rgba(45,106,79,0.2)", icon: CheckCircle2 },
+  pending_review: { label: "Väntar granskning", color: "var(--ms-amber)", bg: "rgba(200,151,62,0.1)", border: "rgba(200,151,62,0.25)", icon: Clock },
+  approved: { label: "Godkänd", color: "var(--ms-status-ok)", bg: "rgba(45,106,79,0.08)", border: "rgba(45,106,79,0.2)", icon: CheckCircle2 },
   rejected: { label: "Avvisad", color: "var(--ms-status-error)", bg: "rgba(192,57,43,0.08)", border: "rgba(192,57,43,0.2)", icon: AlertCircle },
-  needs_info: { label: "Behover info", color: "var(--ms-status-info)", bg: "rgba(46,107,170,0.08)", border: "rgba(46,107,170,0.2)", icon: MessageSquare },
+  needs_info: { label: "Behöver info", color: "var(--ms-status-info)", bg: "rgba(46,107,170,0.08)", border: "rgba(46,107,170,0.2)", icon: MessageSquare },
 };
 
 export function InternalReview({ submission, blockingCount, warningCount, onBack, backLabel = "Tillbaka till validering" }: InternalReviewProps) {
@@ -83,7 +83,7 @@ export function InternalReview({ submission, blockingCount, warningCount, onBack
           <div>
             <h1 style={{ color: "var(--ms-green)" }}>Intern granskning</h1>
             <p className="mt-1" style={{ color: "var(--muted-foreground)", fontSize: "15px" }}>
-              Har ser du vilka artikelutkast som ar redo for intern bedomning och vad som behovs for beslut.
+              Här ser du vilka artikelutkast som är redo för intern bedömning och vad som behövs för beslut.
             </p>
           </div>
           <div className="flex gap-2">
@@ -122,7 +122,7 @@ export function InternalReview({ submission, blockingCount, warningCount, onBack
               <input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                placeholder="Sok artikel eller leverantor..."
+                placeholder="Sök artikel eller leverantör..."
                 className="flex-1 bg-transparent outline-none"
                 style={{ fontSize: "13px", color: "var(--foreground)" }}
               />
@@ -176,7 +176,7 @@ export function InternalReview({ submission, blockingCount, warningCount, onBack
               </div>
               <div className="flex items-center gap-2">
                 <button className="flex items-center gap-1.5 rounded-lg px-3 py-2 transition-all hover:bg-muted" style={{ border: "1px solid var(--border)", fontSize: "13px", color: "var(--foreground)" }}>
-                  <Eye size={14} /> Forhandsgranska
+                  <Eye size={14} /> Förhandsgranska
                 </button>
                 <button disabled className="flex items-center gap-1.5 rounded-lg px-3 py-2 transition-all" style={actionDisabledStyle} title="Kommer snart">
                   <MessageSquare size={14} /> Kommentar
@@ -189,7 +189,7 @@ export function InternalReview({ submission, blockingCount, warningCount, onBack
                 { label: "AI-kvalitetspoang", value: `${article.aiScore}%`, color: article.aiScore >= 90 ? "var(--ms-status-ok)" : article.aiScore >= 75 ? "var(--ms-amber)" : "var(--ms-status-error)" },
                 { label: "Blockerande problem", value: String(blockingCount), color: blockingCount === 0 ? "var(--ms-status-ok)" : "var(--ms-status-error)" },
                 { label: "Kategori", value: submission.values.category || article.category, color: "var(--foreground)" },
-                { label: "Inlamnad", value: article.submitted, color: "var(--foreground)" },
+                { label: "Inlämnad", value: article.submitted, color: "var(--foreground)" },
               ].map((metric) => (
                 <div key={metric.label} className="rounded-xl p-4" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
                   <p style={{ fontSize: "11px", color: "var(--muted-foreground)", marginBottom: "4px" }}>{metric.label}</p>
@@ -205,11 +205,11 @@ export function InternalReview({ submission, blockingCount, warningCount, onBack
               <div>
                 {[
                   { label: "EAN-13", value: submission.values.ean || article.ean },
-                  { label: "Leverantor", value: article.supplier },
+                  { label: "Leverantör", value: article.supplier },
                   { label: "Kategori", value: submission.values.category || article.category },
                   { label: "Produktkategori (M&S)", value: submission.values.category || "Ej vald" },
                   { label: "Ursprungsland", value: submission.values.countryOfOrigin || "Ej angivet" },
-                  { label: "Hallbarhet", value: `${submission.values.shelfLife || "-"} dagar` },
+                  { label: "Hållbarhet", value: `${submission.values.shelfLife || "-"} dagar` },
                   { label: "Varningar", value: String(warningCount) },
                 ].map((row) => (
                   <div key={row.label} className="flex justify-between px-5 py-2.5" style={{ borderBottom: "1px solid var(--border)" }}>
@@ -238,11 +238,11 @@ export function InternalReview({ submission, blockingCount, warningCount, onBack
                   <ThumbsDown size={14} /> Avvisa
                 </button>
                 <button disabled className="flex items-center gap-2 rounded-lg px-4 py-2.5 transition-all" style={actionDisabledStyle} title="Kommer snart">
-                  <MessageSquare size={14} /> Begar komplettering
+                  <MessageSquare size={14} /> Begär komplettering
                 </button>
                 <div className="flex-1" />
                 <button className="flex items-center gap-2 rounded-lg px-5 py-2.5 transition-all hover:opacity-90" style={{ background: "var(--ms-green)", color: "#fff", fontWeight: 600, fontSize: "13px" }}>
-                  <ThumbsUp size={14} /> Godkann artikel
+                  <ThumbsUp size={14} /> Godkänn artikel
                 </button>
               </>
             )}

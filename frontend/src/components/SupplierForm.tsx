@@ -55,8 +55,8 @@ export type FormValues = {
 
 const SECTION_ORDER: Array<{ id: SectionId; label: string; required: boolean }> = [
   { id: "basic", label: "Grunduppgifter", required: true },
-  { id: "packaging", label: "Forpackning och matt", required: true },
-  { id: "nutrition", label: "Naringsvarden", required: true },
+  { id: "packaging", label: "Förpackning och mått", required: true },
+  { id: "nutrition", label: "Näringsvärden", required: true },
   { id: "allergens", label: "Allergener", required: true },
   { id: "logistics", label: "Logistik", required: false },
   { id: "media", label: "Bilder och media", required: false },
@@ -141,7 +141,7 @@ export function SupplierForm({ articleDraft, uploadedFiles, uploadMode, focusTar
             <div>
               <h1 style={{ color: "var(--ms-green)" }}>Granska och komplettera</h1>
               <p className="mt-1" style={{ color: "var(--muted-foreground)", fontSize: "15px" }}>
-                AI:n har forifyllt falten nedan. Kontrollera, korrigera och fyll i det som saknas.
+                AI:n har förifyllt fälten nedan. Kontrollera, korrigera och fyll i det som saknas.
               </p>
             </div>
 
@@ -150,7 +150,7 @@ export function SupplierForm({ articleDraft, uploadedFiles, uploadMode, focusTar
               style={{ background: "rgba(200,151,62,0.12)", border: "1px solid rgba(200,151,62,0.25)" }}
             >
               <div className="h-2 w-2 rounded-full" style={{ background: "var(--ms-amber)" }} />
-              <span style={{ fontSize: "12px", fontWeight: 600, color: "var(--ms-amber)" }}>{missingCount} falt saknas</span>
+              <span style={{ fontSize: "12px", fontWeight: 600, color: "var(--ms-amber)" }}>{missingCount} fält saknas</span>
             </div>
           </div>
 
@@ -197,8 +197,8 @@ export function SupplierForm({ articleDraft, uploadedFiles, uploadMode, focusTar
 
             <p style={{ fontSize: "13px", color: "var(--muted-foreground)" }}>
               {uploadMode === "manual"
-                ? "Manuellt inmatningslage valdes i steg 1. Inga filer ar kopplade till artikeln."
-                : `${uploadedFiles.length} uppladdade filer foljer med in i artikelutkastet.`}
+                ? "Manuellt inmatningsläge valdes i steg 1. Inga filer är kopplade till artikeln."
+                : `${uploadedFiles.length} uppladdade filer följer med in i artikelutkastet.`}
             </p>
 
             {uploadMode === "upload" && uploadedFiles.length > 0 ? (
@@ -247,7 +247,7 @@ export function SupplierForm({ articleDraft, uploadedFiles, uploadMode, focusTar
             className="flex items-center gap-2 rounded-xl px-6 py-3 transition-all hover:opacity-90"
             style={{ background: "var(--ms-green)", color: "#fff", fontWeight: 600, fontSize: "14px", boxShadow: "0 12px 24px rgba(27,58,45,0.18)" }}
           >
-            Kor validering <ArrowRight size={16} />
+            Kör validering <ArrowRight size={16} />
           </button>
         </div>
       </div>
@@ -278,7 +278,7 @@ function buildFormValues(articleDraft: ArticleDraft | null, uploadedFiles: Uploa
     shortDescription: articleDraft?.generatedCopy.shortDescription || "",
     netWeight: metadata?.netWeight || articleDraft?.product.packageSize.replace(/[^0-9]/g, "") || "",
     volume: articleDraft?.product.packageSize.includes("ml") ? articleDraft.product.packageSize.replace(/[^0-9]/g, "") : "",
-    packagingType: metadata?.packaging || (uploadedFiles.some((file) => file.type === "pdf") ? "Konsumentforpackning" : ""),
+    packagingType: metadata?.packaging || (uploadedFiles.some((file) => file.type === "pdf") ? "Konsumentförpackning" : ""),
     height: "",
     width: "",
     depth: "",
@@ -313,9 +313,9 @@ function getSectionTitle(section: SectionId) {
     case "basic":
       return "Grunduppgifter";
     case "packaging":
-      return "Forpackning och matt";
+      return "Förpackning och mått";
     case "nutrition":
-      return "Naringsvarden per 100 ml";
+      return "Näringsvärden per 100 ml";
     case "allergens":
       return "Allergener";
     case "logistics":
@@ -328,17 +328,17 @@ function getSectionTitle(section: SectionId) {
 function getSectionDescription(section: SectionId) {
   switch (section) {
     case "basic":
-      return "Kontrollera artikelns identitet, varumarke och kortbeskrivning.";
+      return "Kontrollera artikelns identitet, varumärke och kortbeskrivning.";
     case "packaging":
-      return "Komplettera dimensioner, kolliuppgifter och forpackningsdata.";
+      return "Komplettera dimensioner, kolliuppgifter och förpackningsdata.";
     case "nutrition":
-      return "Verifiera AI-extraherade naringsvarden och fyll i det som saknas.";
+      return "Verifiera AI-extraherade näringsvärden och fyll i det som saknas.";
     case "allergens":
-      return "Markera alla allergener och spar som forekommer i produkten.";
+      return "Markera alla allergener och spår som förekommer i produkten.";
     case "logistics":
-      return "Fyll i logistikfalten som behovs for vidare behandling internt.";
+      return "Fyll i logistikfälten som behövs för vidare behandling internt.";
     case "media":
-      return "Se om displaybilder finns eller om media maste kompletteras senare.";
+      return "Se om displaybilder finns eller om media måste kompletteras senare.";
   }
 }
 
@@ -356,8 +356,8 @@ function renderSectionContent(
       <div className="grid grid-cols-2 gap-4 max-[980px]:grid-cols-1">
         <Field label="Artikelnamn" fieldId="productName" inputRef={(element) => assignFieldRef(fieldRefs, "productName", element)} value={formValues.productName} aiExtracted onChange={(value) => onChange("productName", value)} />
         <Field label="EAN-13" fieldId="ean" inputRef={(element) => assignFieldRef(fieldRefs, "ean", element)} value={formValues.ean} aiExtracted onChange={(value) => onChange("ean", value)} />
-        <Field label="Artikelnummer (leverantor)" fieldId="articleNumber" inputRef={(element) => assignFieldRef(fieldRefs, "articleNumber", element)} value={formValues.articleNumber} aiExtracted onChange={(value) => onChange("articleNumber", value)} />
-        <Field label="Varumarke" fieldId="brand" inputRef={(element) => assignFieldRef(fieldRefs, "brand", element)} value={formValues.brand} aiExtracted onChange={(value) => onChange("brand", value)} />
+        <Field label="Artikelnummer (leverantör)" fieldId="articleNumber" inputRef={(element) => assignFieldRef(fieldRefs, "articleNumber", element)} value={formValues.articleNumber} aiExtracted onChange={(value) => onChange("articleNumber", value)} />
+        <Field label="Varumärke" fieldId="brand" inputRef={(element) => assignFieldRef(fieldRefs, "brand", element)} value={formValues.brand} aiExtracted onChange={(value) => onChange("brand", value)} />
         <Field label="Produktkategori" fieldId="category" inputRef={(element) => assignFieldRef(fieldRefs, "category", element)} value={formValues.category} aiExtracted onChange={(value) => onChange("category", value)} />
         <Field label="Kortbeskrivning" fieldId="shortDescription" inputRef={(element) => assignFieldRef(fieldRefs, "shortDescription", element)} value={formValues.shortDescription} aiExtracted full onChange={(value) => onChange("shortDescription", value)} />
       </div>
@@ -369,11 +369,11 @@ function renderSectionContent(
       <div className="grid grid-cols-3 gap-4 max-[1180px]:grid-cols-2 max-[980px]:grid-cols-1">
         <Field label="Nettovikt (g)" fieldId="netWeight" inputRef={(element) => assignFieldRef(fieldRefs, "netWeight", element)} value={formValues.netWeight} aiExtracted={Boolean(formValues.netWeight)} onChange={(value) => onChange("netWeight", value)} />
         <Field label="Volym (ml)" fieldId="volume" inputRef={(element) => assignFieldRef(fieldRefs, "volume", element)} value={formValues.volume} aiExtracted={Boolean(formValues.volume)} onChange={(value) => onChange("volume", value)} />
-        <Field label="Forpackningstyp" fieldId="packagingType" inputRef={(element) => assignFieldRef(fieldRefs, "packagingType", element)} value={formValues.packagingType} aiExtracted={Boolean(formValues.packagingType)} onChange={(value) => onChange("packagingType", value)} />
-        <Field label="Hojd (mm)" fieldId="height" inputRef={(element) => assignFieldRef(fieldRefs, "height", element)} value={formValues.height} onChange={(value) => onChange("height", value)} />
+        <Field label="Förpackningstyp" fieldId="packagingType" inputRef={(element) => assignFieldRef(fieldRefs, "packagingType", element)} value={formValues.packagingType} aiExtracted={Boolean(formValues.packagingType)} onChange={(value) => onChange("packagingType", value)} />
+        <Field label="Höjd (mm)" fieldId="height" inputRef={(element) => assignFieldRef(fieldRefs, "height", element)} value={formValues.height} onChange={(value) => onChange("height", value)} />
         <Field label="Bredd (mm)" fieldId="width" inputRef={(element) => assignFieldRef(fieldRefs, "width", element)} value={formValues.width} onChange={(value) => onChange("width", value)} />
         <Field label="Djup (mm)" fieldId="depth" inputRef={(element) => assignFieldRef(fieldRefs, "depth", element)} value={formValues.depth} onChange={(value) => onChange("depth", value)} />
-        <Field label="Kolli per forpackning" fieldId="casesPerPackage" inputRef={(element) => assignFieldRef(fieldRefs, "casesPerPackage", element)} value={formValues.casesPerPackage} missing={!formValues.casesPerPackage} onChange={(value) => onChange("casesPerPackage", value)} />
+        <Field label="Kolli per förpackning" fieldId="casesPerPackage" inputRef={(element) => assignFieldRef(fieldRefs, "casesPerPackage", element)} value={formValues.casesPerPackage} missing={!formValues.casesPerPackage} onChange={(value) => onChange("casesPerPackage", value)} />
         <Field label="Vikt per kolli (kg)" fieldId="caseWeight" inputRef={(element) => assignFieldRef(fieldRefs, "caseWeight", element)} value={formValues.caseWeight} missing={!formValues.caseWeight} onChange={(value) => onChange("caseWeight", value)} />
       </div>
     );
@@ -384,7 +384,7 @@ function renderSectionContent(
       { label: "Energi (kJ)", key: "energyKj" },
       { label: "Energi (kcal)", key: "energyKcal" },
       { label: "Fett (g)", key: "fat" },
-      { label: "varav mattat fett (g)", key: "saturatedFat" },
+       { label: "varav mättat fett (g)", key: "saturatedFat" },
       { label: "Kolhydrater (g)", key: "carbohydrates" },
       { label: "varav sockerarter (g)", key: "sugars" },
       { label: "Kostfiber (g)", key: "fiber" },
@@ -415,7 +415,7 @@ function renderSectionContent(
     return (
       <div>
         <p className="mb-3" style={{ fontSize: "13px", color: "var(--muted-foreground)" }}>
-          Valj alla amnen som forekommer i produkten, inklusive spar.
+          Välj alla ämnen som förekommer i produkten, inklusive spår.
         </p>
         <div className="flex flex-wrap gap-2">
           {ALLERGENS.map((allergen) => (
@@ -447,11 +447,11 @@ function renderSectionContent(
   if (section === "logistics") {
     return (
       <div className="grid grid-cols-3 gap-4 max-[1180px]:grid-cols-2 max-[980px]:grid-cols-1">
-        <Field label="Hallbarhet (dagar)" fieldId="shelfLife" inputRef={(element) => assignFieldRef(fieldRefs, "shelfLife", element)} value={formValues.shelfLife} aiExtracted onChange={(value) => onChange("shelfLife", value)} />
+        <Field label="Hållbarhet (dagar)" fieldId="shelfLife" inputRef={(element) => assignFieldRef(fieldRefs, "shelfLife", element)} value={formValues.shelfLife} aiExtracted onChange={(value) => onChange("shelfLife", value)} />
         <Field label="Lagringstemperatur" fieldId="storageTemperature" inputRef={(element) => assignFieldRef(fieldRefs, "storageTemperature", element)} value={formValues.storageTemperature} aiExtracted onChange={(value) => onChange("storageTemperature", value)} />
-        <Field label="Oppnad hallbarhet (dagar)" fieldId="openedShelfLife" inputRef={(element) => assignFieldRef(fieldRefs, "openedShelfLife", element)} value={formValues.openedShelfLife} aiExtracted onChange={(value) => onChange("openedShelfLife", value)} />
+        <Field label="Öppnad hållbarhet (dagar)" fieldId="openedShelfLife" inputRef={(element) => assignFieldRef(fieldRefs, "openedShelfLife", element)} value={formValues.openedShelfLife} aiExtracted onChange={(value) => onChange("openedShelfLife", value)} />
         <Field label="Ursprungsland" fieldId="countryOfOrigin" inputRef={(element) => assignFieldRef(fieldRefs, "countryOfOrigin", element)} value={formValues.countryOfOrigin} aiExtracted onChange={(value) => onChange("countryOfOrigin", value)} />
-        <Field label="GLN (leverantor)" fieldId="supplierGln" inputRef={(element) => assignFieldRef(fieldRefs, "supplierGln", element)} value={formValues.supplierGln} missing={!formValues.supplierGln} onChange={(value) => onChange("supplierGln", value)} />
+        <Field label="GLN (leverantör)" fieldId="supplierGln" inputRef={(element) => assignFieldRef(fieldRefs, "supplierGln", element)} value={formValues.supplierGln} missing={!formValues.supplierGln} onChange={(value) => onChange("supplierGln", value)} />
       </div>
     );
   }
@@ -462,8 +462,8 @@ function renderSectionContent(
         <p style={{ fontSize: "13px", fontWeight: 600, color: "var(--foreground)" }}>Displaybilder</p>
         <p style={{ fontSize: "13px", color: "var(--muted-foreground)", marginTop: "6px", lineHeight: 1.6 }}>
           {articleDraft?.displayImages.length
-            ? `${articleDraft.displayImages.length} bild(er) ar kopplade till utkastet.`
-            : "Inga displaybilder hittades i underlaget. Leverantoren kan komplettera senare i flodet."}
+            ? `${articleDraft.displayImages.length} bild(er) är kopplade till utkastet.`
+            : "Inga displaybilder hittades i underlaget. Leverantören kan komplettera senare i flödet."}
         </p>
       </div>
     </div>

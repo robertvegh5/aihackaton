@@ -58,12 +58,12 @@ export function AIDraftReview({ articleDraft, focusTarget = null, onFocusTargetH
           </div>
           <h1 style={{ color: "var(--ms-green)" }}>Granska AI-utkast</h1>
           <p className="mt-1" style={{ color: "var(--muted-foreground)", fontSize: "15px" }}>
-            Kor extraktionen i steg 1 forst for att fa ett verkligt utkast att granska.
+            Kör extraktionen i steg 1 först för att få ett verkligt utkast att granska.
           </p>
         </div>
         <div className="flex flex-1 items-center justify-center px-8 py-8">
           <div className="w-full max-w-xl rounded-2xl p-6 text-center" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
-            <p style={{ fontSize: "16px", fontWeight: 600, color: "var(--foreground)" }}>Ingen article-draft tillganglig</p>
+            <p style={{ fontSize: "16px", fontWeight: 600, color: "var(--foreground)" }}>Inget artikelutkast tillgängligt</p>
           </div>
         </div>
         <div className="flex items-center justify-between border-t border-border px-8 py-5" style={{ background: "var(--card)" }}>
@@ -71,7 +71,7 @@ export function AIDraftReview({ articleDraft, focusTarget = null, onFocusTargetH
             <ArrowLeft size={16} /> Tillbaka
           </button>
           <button disabled className="flex items-center gap-2 rounded-lg px-5 py-2.5 transition-all" style={{ background: "var(--muted)", color: "var(--muted-foreground)", fontWeight: 600, fontSize: "14px", cursor: "not-allowed", opacity: 0.7 }}>
-            Kor validering <ArrowRight size={16} />
+            Kör validering <ArrowRight size={16} />
           </button>
         </div>
       </div>
@@ -97,7 +97,7 @@ export function AIDraftReview({ articleDraft, focusTarget = null, onFocusTargetH
           <div>
             <h1 style={{ color: "var(--ms-green)" }}>Granska AI-utkast</h1>
             <p className="mt-1" style={{ color: "var(--muted-foreground)", fontSize: "15px" }}>
-              Verifiera extraherade falt. Klicka pa ett varde for att redigera. Kallhanvisning visas per falt.
+              Verifiera extraherade fält. Klicka på ett värde för att redigera. Källhänvisning visas per fält.
             </p>
           </div>
           <div className="flex flex-shrink-0 gap-2">
@@ -218,9 +218,9 @@ export function AIDraftReview({ articleDraft, focusTarget = null, onFocusTargetH
             </div>
             <div className="flex flex-col gap-2">
               {[
-                { label: "Hog (>=90%)", count: allFields.filter((field) => field.confidence >= 90).length, color: "var(--ms-status-ok)" },
+                { label: "Hög (>=90%)", count: allFields.filter((field) => field.confidence >= 90).length, color: "var(--ms-status-ok)" },
                 { label: "Medium (75-89%)", count: allFields.filter((field) => field.confidence >= 75 && field.confidence < 90).length, color: "var(--ms-amber)" },
-                { label: "Lag (<75%)", count: allFields.filter((field) => field.confidence > 0 && field.confidence < 75).length, color: "var(--ms-status-error)" },
+                { label: "Låg (<75%)", count: allFields.filter((field) => field.confidence > 0 && field.confidence < 75).length, color: "var(--ms-status-error)" },
                 { label: "Saknas", count: missingCount, color: "var(--border)" },
               ].map((row) => (
                 <div key={row.label} className="flex items-center gap-2">
@@ -233,7 +233,7 @@ export function AIDraftReview({ articleDraft, focusTarget = null, onFocusTargetH
           </div>
 
           <div className="rounded-xl p-4" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
-            <p style={{ fontSize: "12px", fontWeight: 700, color: "var(--foreground)", marginBottom: "10px" }}>Kalldokument</p>
+            <p style={{ fontSize: "12px", fontWeight: 700, color: "var(--foreground)", marginBottom: "10px" }}>Källdokument</p>
             {articleDraft.sourceFiles.map((source) => (
               <div key={source.name} className="flex items-center justify-between py-1.5" style={{ borderBottom: "1px solid var(--border)" }}>
                 <span style={{ fontSize: "12px", color: "var(--muted-foreground)" }}>{source.name}</span>
@@ -245,9 +245,9 @@ export function AIDraftReview({ articleDraft, focusTarget = null, onFocusTargetH
           </div>
 
           <div className="rounded-xl p-4" style={{ background: "rgba(27,58,45,0.06)", border: "1px solid rgba(27,58,45,0.12)" }}>
-            <p style={{ fontSize: "12px", fontWeight: 700, color: "var(--ms-green)", marginBottom: "6px" }}>Nasta steg</p>
+            <p style={{ fontSize: "12px", fontWeight: 700, color: "var(--ms-green)", marginBottom: "6px" }}>Nästa steg</p>
             <p style={{ fontSize: "12px", color: "var(--ms-green-mid)", lineHeight: "1.6" }}>
-              Fyll i de saknade falten. Granska varningarna. Skicka sedan for fullstandig regelvalidering.
+              Fyll i de saknade fälten. Granska varningarna. Skicka sedan för fullständig regelvalidering.
             </p>
           </div>
         </div>
@@ -266,7 +266,7 @@ export function AIDraftReview({ articleDraft, focusTarget = null, onFocusTargetH
           className="flex items-center gap-2 rounded-lg px-5 py-2.5 transition-all hover:opacity-90"
           style={{ background: "var(--ms-green)", color: "#fff", fontWeight: 600, fontSize: "14px" }}
         >
-          Kor validering <ArrowRight size={16} />
+          Kör validering <ArrowRight size={16} />
         </button>
       </div>
     </div>
@@ -288,13 +288,13 @@ function mapArticleDraftToSections(articleDraft: ArticleDraft): DraftSection[] {
       fields: [
         { label: "Artikelnamn", value: articleDraft.product.productName || "-", confidence: productConfidence, source: sourceName, missing: !articleDraft.product.productName },
         { label: "EAN-13", value: metadata.ean || "-", confidence: productConfidence, source: sourceName, missing: !metadata.ean },
-        { label: "Varumarke", value: articleDraft.product.brand || "-", confidence: productConfidence, source: sourceName, missing: !articleDraft.product.brand },
+        { label: "Varumärke", value: articleDraft.product.brand || "-", confidence: productConfidence, source: sourceName, missing: !articleDraft.product.brand },
         { label: "Kategori", value: metadata.category || "-", confidence: productConfidence, source: sourceName, missing: !metadata.category },
         { label: "Artikelnummer", value: metadata.articleNumber || "-", confidence: productConfidence, source: sourceName, missing: !metadata.articleNumber },
       ],
     },
     {
-      section: "Naringsvarden (per 100 ml)",
+      section: "Näringsvärden (per 100 ml)",
       fields: [
         { label: "Energi (kJ)", value: articleDraft.nutrition.energyKj == null ? "-" : String(articleDraft.nutrition.energyKj), confidence: nutritionConfidence, source: sourceName, missing: articleDraft.nutrition.energyKj == null },
         { label: "Fett (g)", value: articleDraft.nutrition.fat == null ? "-" : String(articleDraft.nutrition.fat), confidence: nutritionConfidence, source: sourceName, missing: articleDraft.nutrition.fat == null },
@@ -306,9 +306,9 @@ function mapArticleDraftToSections(articleDraft: ArticleDraft): DraftSection[] {
     {
       section: "Allergener",
       fields: [
-        { label: "Innehaller mjolk", value: allergenSet.has("Mjölk") ? "Ja" : "Nej", confidence: allergenConfidence, source: sourceName },
-        { label: "Innehaller soja", value: allergenSet.has("Soja") ? "Ja" : "Nej", confidence: allergenConfidence, source: sourceName },
-        { label: "Innehaller gluten", value: allergenSet.has("Gluten") ? "Ja" : "Nej", confidence: allergenConfidence, source: sourceName },
+        { label: "Innehåller mjölk", value: allergenSet.has("Mjölk") ? "Ja" : "Nej", confidence: allergenConfidence, source: sourceName },
+        { label: "Innehåller soja", value: allergenSet.has("Soja") ? "Ja" : "Nej", confidence: allergenConfidence, source: sourceName },
+        { label: "Innehåller gluten", value: allergenSet.has("Gluten") ? "Ja" : "Nej", confidence: allergenConfidence, source: sourceName },
         { label: "Ingredienser", value: articleDraft.ingredients.text || "-", confidence: ingredientConfidence, source: sourceName, missing: !articleDraft.ingredients.text },
       ],
     },
@@ -316,9 +316,9 @@ function mapArticleDraftToSections(articleDraft: ArticleDraft): DraftSection[] {
       section: "Logistik",
       fields: [
         { label: "Ursprungsland", value: metadata.countryOfOrigin || "-", confidence: productConfidence, source: sourceName, missing: !metadata.countryOfOrigin },
-        { label: "Forpackning", value: metadata.packaging || articleDraft.product.packageSize || "-", confidence: productConfidence, source: sourceName, missing: !metadata.packaging && !articleDraft.product.packageSize },
+        { label: "Förpackning", value: metadata.packaging || articleDraft.product.packageSize || "-", confidence: productConfidence, source: sourceName, missing: !metadata.packaging && !articleDraft.product.packageSize },
         { label: "Nettovikt", value: metadata.netWeight || articleDraft.product.packageSize || "-", confidence: productConfidence, source: sourceName, missing: !metadata.netWeight && !articleDraft.product.packageSize },
-        { label: "Forvaring", value: metadata.storage || "-", confidence: productConfidence, source: sourceName, missing: !metadata.storage },
+        { label: "Förvaring", value: metadata.storage || "-", confidence: productConfidence, source: sourceName, missing: !metadata.storage },
       ],
     },
   ];

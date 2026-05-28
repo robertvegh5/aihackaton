@@ -1,6 +1,7 @@
 import express from "express";
 import multer from "multer";
 import { PDFParse } from "pdf-parse";
+import dotenv from "dotenv";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -13,6 +14,10 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const openApiPath = path.resolve(__dirname, "../openapi.yaml");
 const aiModelsConfigPath = path.resolve(__dirname, "../../.agents/skills/ai-sdk/ai-models-config.md");
+
+dotenv.config({ path: path.resolve(__dirname, "../.env") });
+dotenv.config({ path: path.resolve(__dirname, "../.env.local"), override: true });
+
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
